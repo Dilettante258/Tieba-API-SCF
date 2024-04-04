@@ -21,12 +21,21 @@ jobs:
         run: |
           rm -r .github .git .gitattributes .gitignore LICENSE README.md package.json package-lock.json tsconfig.json 
 
-      - name: Package files
-        run: |
-          zip -r package.zip .
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: package
-          path: package.zip
+          path: ./
+
+      - name: Package files
+        run: |
+          zip -r package.zip .
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: package.zip
+          tag: ${{ github.ref }}
+          title: ${{ github.ref }}
+          body: ${{ github.ref }}
