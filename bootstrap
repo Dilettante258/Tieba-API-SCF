@@ -1,0 +1,1 @@
+/opt/function/runtime/nodejs18.15/rtsp/nodejs/bin/node $RUNTIME_CODE_ROOT/src/index.mjs
