@@ -1,10 +1,7 @@
 import {serve} from '@hono/node-server'
 import {Hono} from 'hono/quick'
-import {forumReqSerialize, forumResDeserialize, postReqSerialize, postResDeserialize} from "./ProtobufParser.mjs";
 
-
-
-
+import { serveStatic } from '@hono/node-server/serve-static'
 
 const app = new Hono()
 
@@ -15,7 +12,9 @@ import forum from "./routes/forum.mjs";
 app.route('/user', user)
 app.route('/forum', forum)
 
-app.get('/', (c) => c.text('Tieba-Api-Huawei-FunctionGraph'))
+app.use('/', serveStatic({ root: './src/' ,path: "index.html"}))
+
+app.get('/wakeup', (c) => {return c.text('OK!')})
 
 app.notFound((c) => {
   return c.text('Custom 404 Message', 404)
@@ -26,10 +25,8 @@ app.onError((err, c) => {
   return c.text(`Custom Error Message ${err}`, 500)
 })
 
-
-const port = 8000
-console.log(`Server running at http://localhost:${port}`)
+console.log(`Server running at http://localhost:8000`)
 serve({
   fetch: app.fetch,
-  port
+  port: 8000
 })
