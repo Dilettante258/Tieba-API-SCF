@@ -12,21 +12,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install dependencies
         run: npm ci
 
       - name: Remove unnecessary files
         run: |
-          rm -r .gitattributes .gitignore LICENSE README.md package.json package-lock.json tsconfig.json
+          rm -r .gitattributes .gitignore LICENSE README.md package.json package-lock.json tsconfig.json .github 
 
       - name: Package files
         run: |
           zip -r package.zip .
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: package
           path: package.zip
