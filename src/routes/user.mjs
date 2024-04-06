@@ -19,12 +19,14 @@ user.get('/getinfo/:username', async (c) => {
   }
 })
 
+
+
 user.get('/fans', async (c) => {
-  const params  = c.req.query();
-  const res = await postFormData('/c/u/fans/page', packRequest(params));
+  let params  = c.req.query()
+  let res = await postFormData('/c/u/fans/page', packRequest(params));
   if (params.hasOwnProperty('needAll') && res.page.total_page !== '1') {
     for (let i = 2; i <= Number(res.page.total_page); i++) {
-      params.page = i.toString();
+      params.pn = i.toString();
       let temp = await postFormData('/c/u/fans/page', packRequest(params));
       res.user_list.push(...temp.user_list);
     }
@@ -33,20 +35,19 @@ user.get('/fans', async (c) => {
 })
 
 user.get('/related', async (c) => {
-  const params  = c.req.query();
-  const res = await postFormData('/c/u/fans/page', packRequest(params));
+  let params  = c.req.query()
+  let res = await postFormData('/c/u/fans/page', packRequest(params));
   let friend = 0;
   let followed = 0;
   let fans = 0;
 
   if (params.hasOwnProperty('needAll') && res.page.total_page !== '1') {
     for (let i = 2; i <= Number(res.page.total_page); i++) {
-      params.page = i.toString();
+      params.pn = i.toString();
       let temp = await postFormData('/c/u/fans/page', packRequest(params));
       res.user_list.push(...temp.user_list);
     }
   }
-
   console.log(res.user_list);
 
   res.user_list = res.user_list.filter(item => {
@@ -72,12 +73,12 @@ user.get('/related', async (c) => {
 })
 
 user.get('/follows', async (c) => {
-  const params  = c.req.query();
-  const res = await postFormData('/c/u/follow/followList', packRequest(params));
+  let params  = c.req.query()
+  let res = await postFormData('/c/u/follow/followList', packRequest(params));
   if (params.hasOwnProperty('needAll') && res.total_follow_num !== 1) {
     const promises = [];
     for (let i = 2; i <= (res.total_follow_num/20+1); i++) {
-      params.page = i.toString();
+      params.pn = i.toString();
       promises.push(postFormData('/c/u/follow/followList', packRequest(params)));
     }
     const results = await Promise.all(promises);
@@ -89,7 +90,7 @@ user.get('/follows', async (c) => {
 })
 
 user.get('/forum', async (c) => {
-  const params  = c.req.query();
+  let params  = c.req.query()
   if (!params['page_no']) {
     params['page_no'] = 1;
   }
@@ -108,7 +109,7 @@ user.get('/forum', async (c) => {
 
 user.get('/posts', async (c) => {
   const time = new Date().getTime();
-  const params  = c.req.query();
+  let params  = c.req.query()
   let responseData;
   if (params.hasOwnProperty('batch')) {
     const promises = [];

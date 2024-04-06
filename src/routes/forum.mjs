@@ -1,13 +1,12 @@
 import {Hono} from "hono/quick";
 
-import {forumReqSerialize, forumResDeserialize} from "../ProtobufParser.mjs";
-import {getForumName, postProtobuf} from "../utils.mjs";
+import {getForumName} from "../utils.mjs";
 
 const forum = new Hono()
 
 forum.get('/getName',  async (c) => {
   const params  = c.req.query();
-  const fname = await getForumName(params.get('fid'))
+  const fname = await getForumName(params['fid']);
   return c.text(fname)
 })
 

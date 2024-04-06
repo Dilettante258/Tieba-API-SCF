@@ -66,10 +66,11 @@ export const unpackSimplePost = async (posts) => {
   let result = [];
   for (let post of posts) {
     for(let content of post.content){
+      const forumName = await getForumName(post.forumId)||'';
       let affiliated = content.postType == "1";
       let isReply = affiliated && content?.postContent[1]?.type == "4";
       result.push({
-        forumId: Number(post.forumId),
+        forumName: forumName,
         createTime: Number(content.createTime),
         content: (isReply) ?
           content.postContent[2].text.slice(2) :
@@ -108,6 +109,10 @@ export function packRequest(params) {
   if (!params.has('_client_version')) {
     params.append('_client_version', '12.57.4.2');
   }
+  if (!params.has('pn')) {
+    params.append('pn', params.get('page') || 1);
+  }
+  params.delete('page');
   params.sort();
   const string = Array.from(params.entries()).map(entry => entry.join('=')).join('');
   const sign = Md5.hashStr(string + 'tiebaclient!!!').toUpperCase();
