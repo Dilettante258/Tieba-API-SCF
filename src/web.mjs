@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+export const Document = `<!DOCTYPE html>
 <html lang="zh-Hans">
 <head>
     <title>贴吧API云函数</title>
@@ -74,4 +74,4 @@
 </div>
 <footer>&copy;<time>2024</time> <a href="https://github.com/Dilettante258">Dilettante258</a></footer>
 </body>
-</html>
+</html>`
