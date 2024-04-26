@@ -8,11 +8,13 @@ app.use('*', cors())
 
 import user from "./routes/user.mjs";
 import forum from "./routes/forum.mjs";
+import post from "./routes/post.mjs";
 import {Document} from "./web.mjs";
 
 
 app.route('/user', user)
 app.route('/forum', forum)
+app.route('/post', post)
 
 app.get('/', (c) => { return c.html(Document) })
 

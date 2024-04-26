@@ -45,9 +45,9 @@ export const unpack = async (posts,needForumName=false) => {
         forumId: Number(post.forumId),
         forumName: forumName_,
         title: post.title.slice(3),
-        threadId: Number(post.threadId),
-        postId: Number(content.postId),
-        cid: Number(content.postId),
+        threadId: String(post.threadId),
+        postId: String(content.postId),
+        cid: String(content.postId),
         createTime: timeFormat.format(new Date(content.createTime*1000)),
         affiliated: affiliated,
         content: (isReply) ?
@@ -62,7 +62,72 @@ export const unpack = async (posts,needForumName=false) => {
   return result;
 }
 
-export const unpackSimplePost = async (posts) => {
+function processContent(data, emojicounter, emoticonCounter) {
+  let resultString = '';
+  const emojiRegex = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
+  data.forEach(item => {
+    switch (item.type) {
+      case 0:
+        const matches = item.text.match(emojiRegex);
+        if (matches) {
+          matches.forEach(emoji => {
+            if (!emojicounter[emoji]) {
+              emojicounter[emoji] = 0;
+            }
+            emojicounter[emoji]++;
+          });
+        }
+        resultString += item.text;
+        break;
+      case 2:
+        if (!emoticonCounter[item.c]) {
+          emoticonCounter[item.c] = 0;
+        }
+        emoticonCounter[item.c]++;
+        resultString += `#(${item.c})`;
+        break;
+      case 3:
+        resultString += `#[图片]`;
+        break;
+      case 4:
+        resultString += `${item.text}`;
+        break;
+      default:
+        // 其他类型可以在这里处理，或者忽略
+        break;
+      }
+  });
+  return resultString;
+}
+
+export const unpackPost = async (posts) => {
+  let result = [];
+  let emojicounter = {};
+  let emoticonCounter = {};
+  for (let post of posts) {
+    result.push({
+      ...post,
+      id: String(post.id),
+      authorId: String(post.authorId),
+      content: processContent(post.content, emojicounter, emoticonCounter),
+      subPostList: post.subPostNumber>0 ? post.subPostList.subPostList.map(subPost => {
+        return {
+          id: String(subPost.id),
+          authorId: String(subPost.authorId),
+          time: subPost.time,
+          content: processContent(subPost.content, emojicounter, emoticonCounter),
+        }
+      }) : [],
+    });
+    if (post?.signature) {
+      result.at(-1).signature = processContent(post.signature.content, emojicounter, emoticonCounter);
+    }
+  }
+  return [result, emojicounter, emoticonCounter];
+}
+
+
+export const unpackSimpleUserPost = async (posts) => {
   let result = [];
   for (let post of posts) {
     for(let content of post.content){
@@ -99,6 +164,27 @@ export const getForumName = async (forumId) => {
   return forumName;
 }
 
+
+export const unpackThread = async (posts) => {
+  let result = [];
+  let emojicounter = {};
+  let emoticonCounter = {};
+  for (let post of posts) {
+    result.push({
+      ...post,
+      id: String(post.id),
+      firstPostId: String(post.firstPostId),
+      authorId: String(post.authorId),
+      fid: String(post.fid),
+      firstPostContent: processContent(post.firstPostContent, emojicounter, emoticonCounter),
+    });
+    delete result.at(-1).voiceInfo;
+    delete result.at(-1).isVoiceThread;
+    delete result.at(-1).author;
+    delete result.at(-1).threadType;
+  }
+  return [result, emojicounter, emoticonCounter];
+}
 
 
 export function packRequest(params) {

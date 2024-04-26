@@ -28,7 +28,7 @@
           "type": "int32",
           "id": 1
         },
-        "clientversion": {
+        "_clientVersion": {
           "type": "string",
           "id": 2
         },
@@ -36,15 +36,11 @@
           "type": "string",
           "id": 3
         },
-        "apid": {
-          "type": "string",
-          "id": 4
-        },
         "_phoneImei": {
           "type": "string",
           "id": 5
         },
-        "from": {
+        "_from": {
           "type": "string",
           "id": 6
         },
@@ -72,50 +68,6 @@
           "type": "int32",
           "id": 12
         },
-        "subappType": {
-          "type": "string",
-          "id": 13
-        },
-        "_phoneNewimei": {
-          "type": "string",
-          "id": 14
-        },
-        "ka": {
-          "type": "string",
-          "id": 15
-        },
-        "mApi": {
-          "type": "string",
-          "id": 16
-        },
-        "mLogid": {
-          "type": "string",
-          "id": 17
-        },
-        "mCost": {
-          "type": "string",
-          "id": 18
-        },
-        "mResult": {
-          "type": "string",
-          "id": 19
-        },
-        "mSizeU": {
-          "type": "string",
-          "id": 20
-        },
-        "mSizeD": {
-          "type": "string",
-          "id": 21
-        },
-        "smallflow": {
-          "type": "string",
-          "id": 22
-        },
-        "sign": {
-          "type": "string",
-          "id": 23
-        },
         "pversion": {
           "type": "string",
           "id": 24
@@ -127,10 +79,6 @@
         "brand": {
           "type": "string",
           "id": 26
-        },
-        "brandType": {
-          "type": "string",
-          "id": 27
         },
         "legoLibVersion": {
           "type": "string",
@@ -155,10 +103,6 @@
         "cuidGid": {
           "type": "string",
           "id": 33
-        },
-        "oaid": {
-          "type": "string",
-          "id": 34
         },
         "c3Aid": {
           "type": "string",
@@ -200,14 +144,6 @@
           "type": "string",
           "id": 44
         },
-        "idfa": {
-          "type": "string",
-          "id": 45
-        },
-        "diac": {
-          "type": "string",
-          "id": 46
-        },
         "activeTimestamp": {
           "type": "int64",
           "id": 49
@@ -240,14 +176,6 @@
           "type": "int32",
           "id": 57
         },
-        "shoubaiCuid": {
-          "type": "string",
-          "id": 58
-        },
-        "mac": {
-          "type": "string",
-          "id": 59
-        },
         "idfv": {
           "type": "string",
           "id": 60
@@ -264,81 +192,9 @@
           "type": "int32",
           "id": 63
         },
-        "iemi": {
-          "type": "string",
-          "id": 64
-        },
-        "iemiwen": {
-          "type": "string",
-          "id": 65
-        },
-        "cam": {
-          "type": "string",
-          "id": 66
-        },
-        "afdi": {
-          "type": "string",
-          "id": 67
-        },
-        "diDiordna": {
-          "type": "string",
-          "id": 68
-        },
-        "vfdi": {
-          "type": "string",
-          "id": 69
-        },
         "deviceScore": {
           "type": "string",
           "id": 70
-        },
-        "pureMode": {
-          "type": "int32",
-          "id": 71
-        },
-        "xcxMode": {
-          "type": "int32",
-          "id": 72
-        },
-        "ledom": {
-          "type": "string",
-          "id": 73
-        },
-        "diao": {
-          "type": "string",
-          "id": 74
-        },
-        "noisrevSo": {
-          "type": "string",
-          "id": 75
-        },
-        "dnarb": {
-          "type": "string",
-          "id": 76
-        },
-        "epytDnarb": {
-          "type": "string",
-          "id": 77
-        },
-        "wRcs": {
-          "type": "string",
-          "id": 78
-        },
-        "hRcs": {
-          "type": "string",
-          "id": 79
-        },
-        "pidRcs": {
-          "type": "string",
-          "id": 80
-        },
-        "needDecrypt": {
-          "type": "int32",
-          "id": 81
-        },
-        "needCamDecrypt": {
-          "type": "int32",
-          "id": 82
         }
       }
     },
@@ -419,6 +275,1207 @@
         "errmsg": {
           "type": "string",
           "id": 2
+        }
+      }
+    },
+    "PbPageReqIdl": {
+      "fields": {
+        "data": {
+          "type": "DataReq",
+          "id": 1
+        }
+      },
+      "nested": {
+        "DataReq": {
+          "fields": {
+            "common": {
+              "type": "CommonReq",
+              "id": 25
+            },
+            "kz": {
+              "type": "int64",
+              "id": 4
+            },
+            "lz": {
+              "type": "int32",
+              "id": 5
+            },
+            "r": {
+              "type": "int32",
+              "id": 6
+            },
+            "pid": {
+              "type": "int64",
+              "id": 7
+            },
+            "withFloor": {
+              "type": "int32",
+              "id": 8
+            },
+            "floorRn": {
+              "type": "int32",
+              "id": 9
+            },
+            "rn": {
+              "type": "int32",
+              "id": 13
+            },
+            "pn": {
+              "type": "int32",
+              "id": 18
+            },
+            "floorSortType": {
+              "type": "int32",
+              "id": 74
+            }
+          }
+        }
+      }
+    },
+    "PbPageResIdl": {
+      "fields": {
+        "error": {
+          "type": "Error",
+          "id": 1
+        },
+        "data": {
+          "type": "DataRes",
+          "id": 2
+        }
+      },
+      "nested": {
+        "DataRes": {
+          "fields": {
+            "forum": {
+              "type": "SimpleForum",
+              "id": 2
+            },
+            "page": {
+              "type": "Page",
+              "id": 3
+            },
+            "postList": {
+              "rule": "repeated",
+              "type": "Post",
+              "id": 6
+            },
+            "thread": {
+              "type": "ThreadInfo",
+              "id": 8
+            },
+            "userList": {
+              "rule": "repeated",
+              "type": "User",
+              "id": 13
+            },
+            "threadFreqNum": {
+              "type": "int64",
+              "id": 37
+            }
+          }
+        }
+      }
+    },
+    "SimpleForum": {
+      "fields": {
+        "id": {
+          "type": "int64",
+          "id": 1
+        },
+        "name": {
+          "type": "string",
+          "id": 2
+        },
+        "firstClass": {
+          "type": "string",
+          "id": 7
+        },
+        "secondClass": {
+          "type": "string",
+          "id": 8
+        },
+        "memberNum": {
+          "type": "int32",
+          "id": 12
+        },
+        "postNum": {
+          "type": "int32",
+          "id": 13
+        }
+      }
+    },
+    "Page": {
+      "fields": {
+        "pageSize": {
+          "type": "int32",
+          "id": 1
+        },
+        "currentPage": {
+          "type": "int32",
+          "id": 3
+        },
+        "totalCount": {
+          "type": "int32",
+          "id": 4
+        },
+        "totalPage": {
+          "type": "int32",
+          "id": 5
+        },
+        "hasMore": {
+          "type": "int32",
+          "id": 6
+        },
+        "hasPrev": {
+          "type": "int32",
+          "id": 7
+        }
+      }
+    },
+    "Post": {
+      "fields": {
+        "id": {
+          "type": "int64",
+          "id": 1
+        },
+        "floor": {
+          "type": "uint32",
+          "id": 3
+        },
+        "time": {
+          "type": "uint32",
+          "id": 4
+        },
+        "content": {
+          "rule": "repeated",
+          "type": "PbContent",
+          "id": 5
+        },
+        "subPostNumber": {
+          "type": "uint32",
+          "id": 13
+        },
+        "authorId": {
+          "type": "int64",
+          "id": 19
+        },
+        "subPostList": {
+          "type": "SubPost",
+          "id": 15
+        },
+        "signature": {
+          "type": "SignatureData",
+          "id": 21
+        },
+        "author": {
+          "type": "User",
+          "id": 23
+        },
+        "agree": {
+          "type": "Agree",
+          "id": 37
+        },
+        "tid": {
+          "type": "int64",
+          "id": 46
+        },
+        "customFigure": {
+          "type": "CustomFigure",
+          "id": 60
+        },
+        "customState": {
+          "type": "CustomState",
+          "id": 61
+        },
+        "spriteMemeInfo": {
+          "type": "SpriteMemeInfo",
+          "id": 79
+        }
+      },
+      "nested": {
+        "SubPost": {
+          "fields": {
+            "subPostList": {
+              "rule": "repeated",
+              "type": "SubPostList",
+              "id": 2
+            }
+          }
+        },
+        "SignatureData": {
+          "fields": {
+            "content": {
+              "rule": "repeated",
+              "type": "SignatureContent",
+              "id": 4
+            }
+          },
+          "nested": {
+            "SignatureContent": {
+              "fields": {
+                "type": {
+                  "type": "int32",
+                  "id": 1
+                },
+                "text": {
+                  "type": "string",
+                  "id": 2
+                }
+              }
+            }
+          }
+        },
+        "CustomFigure": {
+          "fields": {
+            "backgroundValue": {
+              "type": "string",
+              "id": 3
+            }
+          }
+        },
+        "CustomState": {
+          "fields": {
+            "content": {
+              "type": "string",
+              "id": 2
+            }
+          }
+        },
+        "SpriteMemeInfo": {
+          "fields": {
+            "memeId": {
+              "type": "int64",
+              "id": 1
+            }
+          }
+        }
+      }
+    },
+    "PbContent": {
+      "fields": {
+        "type": {
+          "type": "uint32",
+          "id": 1
+        },
+        "text": {
+          "type": "string",
+          "id": 2
+        },
+        "link": {
+          "type": "string",
+          "id": 3
+        },
+        "src": {
+          "type": "string",
+          "id": 4
+        },
+        "bsize": {
+          "type": "string",
+          "id": 5
+        },
+        "cdnSrc": {
+          "type": "string",
+          "id": 8
+        },
+        "bigCdnSrc": {
+          "type": "string",
+          "id": 9
+        },
+        "c": {
+          "type": "string",
+          "id": 11
+        },
+        "voiceMd5": {
+          "type": "string",
+          "id": 12
+        },
+        "duringTime": {
+          "type": "uint32",
+          "id": 13
+        },
+        "uid": {
+          "type": "int64",
+          "id": 15
+        },
+        "width": {
+          "type": "uint32",
+          "id": 18
+        },
+        "height": {
+          "type": "uint32",
+          "id": 19
+        },
+        "originSrc": {
+          "type": "string",
+          "id": 25
+        },
+        "originSize": {
+          "type": "uint32",
+          "id": 27
+        },
+        "count": {
+          "type": "int32",
+          "id": 28
+        },
+        "tiebaplusInfo": {
+          "type": "TiebaPlusInfo",
+          "id": 40
+        },
+        "item": {
+          "type": "Item",
+          "id": 41
+        }
+      },
+      "nested": {
+        "TiebaPlusInfo": {
+          "fields": {
+            "title": {
+              "type": "string",
+              "id": 1
+            },
+            "desc": {
+              "type": "string",
+              "id": 2
+            },
+            "jumpUrl": {
+              "type": "string",
+              "id": 3
+            },
+            "appIcon": {
+              "type": "string",
+              "id": 6
+            },
+            "targetType": {
+              "type": "int32",
+              "id": 12
+            },
+            "h5JumpType": {
+              "type": "int32",
+              "id": 13
+            },
+            "h5JumpNumber": {
+              "type": "string",
+              "id": 14
+            },
+            "h5JumpParam": {
+              "type": "string",
+              "id": 15
+            },
+            "jumpType": {
+              "type": "int32",
+              "id": 16
+            },
+            "buttonDesc": {
+              "type": "string",
+              "id": 23
+            }
+          }
+        },
+        "Item": {
+          "fields": {
+            "itemName": {
+              "type": "string",
+              "id": 2
+            }
+          }
+        }
+      }
+    },
+    "SubPostList": {
+      "fields": {
+        "id": {
+          "type": "int64",
+          "id": 1
+        },
+        "content": {
+          "rule": "repeated",
+          "type": "PbContent",
+          "id": 2
+        },
+        "time": {
+          "type": "uint32",
+          "id": 3
+        },
+        "authorId": {
+          "type": "int64",
+          "id": 4
+        },
+        "title": {
+          "type": "string",
+          "id": 5
+        },
+        "floor": {
+          "type": "uint32",
+          "id": 6
+        },
+        "author": {
+          "type": "User",
+          "id": 7
+        },
+        "agree": {
+          "type": "Agree",
+          "id": 9
+        }
+      }
+    },
+    "SubPost": {
+      "fields": {
+        "pid": {
+          "type": "uint64",
+          "id": 1
+        },
+        "subPostList": {
+          "rule": "repeated",
+          "type": "SubPostList",
+          "id": 2
+        }
+      }
+    },
+    "User": {
+      "fields": {
+        "id": {
+          "type": "int64",
+          "id": 2
+        },
+        "name": {
+          "type": "string",
+          "id": 3
+        },
+        "nameShow": {
+          "type": "string",
+          "id": 4
+        },
+        "portrait": {
+          "type": "string",
+          "id": 5
+        },
+        "iconinfo": {
+          "rule": "repeated",
+          "type": "Icon",
+          "id": 17
+        },
+        "isCoreuser": {
+          "type": "int32",
+          "id": 20
+        },
+        "levelId": {
+          "type": "int32",
+          "id": 23
+        },
+        "isBawu": {
+          "type": "int32",
+          "id": 25
+        },
+        "bawuType": {
+          "type": "string",
+          "id": 26
+        },
+        "BDUSS": {
+          "type": "string",
+          "id": 29
+        },
+        "fansNum": {
+          "type": "int32",
+          "id": 30
+        },
+        "concernNum": {
+          "type": "int32",
+          "id": 31
+        },
+        "sex": {
+          "type": "int32",
+          "id": 32
+        },
+        "myLikeNum": {
+          "type": "int32",
+          "id": 33
+        },
+        "intro": {
+          "type": "string",
+          "id": 34
+        },
+        "postNum": {
+          "type": "int32",
+          "id": 37
+        },
+        "tbAge": {
+          "type": "string",
+          "id": 38
+        },
+        "gender": {
+          "type": "int32",
+          "id": 42
+        },
+        "privSets": {
+          "type": "PrivSets",
+          "id": 45
+        },
+        "isFriend": {
+          "type": "int32",
+          "id": 46
+        },
+        "likeForum": {
+          "rule": "repeated",
+          "type": "LikeForumInfo",
+          "id": 47
+        },
+        "isGuanfang": {
+          "type": "int32",
+          "id": 52
+        },
+        "vipInfo": {
+          "type": "UserVipInfo",
+          "id": 61
+        },
+        "newTshowIcon": {
+          "rule": "repeated",
+          "type": "TshowInfo",
+          "id": 65
+        },
+        "isFans": {
+          "type": "int32",
+          "id": 91
+        },
+        "newGodData": {
+          "type": "NewGodInfo",
+          "id": 101
+        },
+        "isDefaultAvatar": {
+          "type": "int32",
+          "id": 106
+        },
+        "tiebaUid": {
+          "type": "string",
+          "id": 120
+        },
+        "ipAddress": {
+          "type": "string",
+          "id": 127
+        },
+        "virtualImageInfo": {
+          "type": "VirtualImageInfo",
+          "id": 136
+        },
+        "userGrowth": {
+          "type": "UserGrowth",
+          "id": 137
+        }
+      },
+      "nested": {
+        "Icon": {
+          "fields": {
+            "name": {
+              "type": "string",
+              "id": 1
+            }
+          }
+        },
+        "PrivSets": {
+          "fields": {
+            "location": {
+              "type": "int32",
+              "id": 1
+            },
+            "like": {
+              "type": "int32",
+              "id": 2
+            },
+            "group": {
+              "type": "int32",
+              "id": 3
+            },
+            "post": {
+              "type": "int32",
+              "id": 4
+            },
+            "friend": {
+              "type": "int32",
+              "id": 5
+            },
+            "live": {
+              "type": "int32",
+              "id": 6
+            },
+            "reply": {
+              "type": "int32",
+              "id": 7
+            },
+            "bazhuShowInside": {
+              "type": "int32",
+              "id": 8
+            },
+            "bazhuShowOutside": {
+              "type": "int32",
+              "id": 9
+            }
+          }
+        },
+        "LikeForumInfo": {
+          "fields": {
+            "forumName": {
+              "type": "string",
+              "id": 1
+            },
+            "forumId": {
+              "type": "uint64",
+              "id": 2
+            }
+          }
+        },
+        "UserVipInfo": {
+          "fields": {
+            "vStatus": {
+              "type": "uint32",
+              "id": 1
+            },
+            "vLevel": {
+              "type": "uint32",
+              "id": 5
+            }
+          }
+        },
+        "TshowInfo": {
+          "fields": {
+            "name": {
+              "type": "string",
+              "id": 2
+            }
+          }
+        },
+        "NewGodInfo": {
+          "fields": {
+            "status": {
+              "type": "int32",
+              "id": 1
+            },
+            "fieldId": {
+              "type": "uint32",
+              "id": 2
+            },
+            "fieldName": {
+              "type": "string",
+              "id": 3
+            }
+          }
+        },
+        "VirtualImageInfo": {
+          "fields": {
+            "issetVirtualImage": {
+              "type": "int32",
+              "id": 1
+            },
+            "personalState": {
+              "type": "StateInfo",
+              "id": 9
+            }
+          },
+          "nested": {
+            "StateInfo": {
+              "fields": {
+                "text": {
+                  "type": "string",
+                  "id": 2
+                }
+              }
+            }
+          }
+        },
+        "UserGrowth": {
+          "fields": {
+            "levelId": {
+              "type": "uint32",
+              "id": 1
+            }
+          }
+        }
+      }
+    },
+    "Agree": {
+      "fields": {
+        "agreeNum": {
+          "type": "int64",
+          "id": 1
+        },
+        "disagreeNum": {
+          "type": "int64",
+          "id": 4
+        }
+      }
+    },
+    "ThreadInfo": {
+      "fields": {
+        "id": {
+          "type": "int64",
+          "id": 1
+        },
+        "title": {
+          "type": "string",
+          "id": 3
+        },
+        "replyNum": {
+          "type": "int32",
+          "id": 4
+        },
+        "viewNum": {
+          "type": "int32",
+          "id": 5
+        },
+        "lastTimeInt": {
+          "type": "int32",
+          "id": 7
+        },
+        "isTop": {
+          "type": "int32",
+          "id": 9
+        },
+        "isGood": {
+          "type": "int32",
+          "id": 10
+        },
+        "isVoiceThread": {
+          "type": "int32",
+          "id": 15
+        },
+        "author": {
+          "type": "User",
+          "id": 18
+        },
+        "voiceInfo": {
+          "rule": "repeated",
+          "type": "Voice",
+          "id": 23
+        },
+        "threadType": {
+          "type": "int32",
+          "id": 26
+        },
+        "fid": {
+          "type": "int64",
+          "id": 27
+        },
+        "fname": {
+          "type": "string",
+          "id": 28
+        },
+        "isLivepost": {
+          "type": "int32",
+          "id": 30
+        },
+        "firstPostId": {
+          "type": "int64",
+          "id": 40
+        },
+        "createTime": {
+          "type": "int32",
+          "id": 45
+        },
+        "postId": {
+          "type": "int64",
+          "id": 52
+        },
+        "authorId": {
+          "type": "int64",
+          "id": 56
+        },
+        "isAd": {
+          "type": "uint32",
+          "id": 59
+        },
+        "pollInfo": {
+          "type": "PollInfo",
+          "id": 74
+        },
+        "videoInfo": {
+          "type": "VideoInfo",
+          "id": 79
+        },
+        "isGodthreadRecommend": {
+          "type": "int32",
+          "id": 85
+        },
+        "agree": {
+          "type": "Agree",
+          "id": 126
+        },
+        "shareNum": {
+          "type": "int32",
+          "id": 135
+        },
+        "originThreadInfo": {
+          "type": "OriginThreadInfo",
+          "id": 141
+        },
+        "firstPostContent": {
+          "rule": "repeated",
+          "type": "PbContent",
+          "id": 142
+        },
+        "isShareThread": {
+          "type": "int32",
+          "id": 143
+        },
+        "tabId": {
+          "type": "int32",
+          "id": 175
+        },
+        "isDeleted": {
+          "type": "int32",
+          "id": 181
+        },
+        "isFrsMask": {
+          "type": "int32",
+          "id": 198
+        },
+        "customFigure": {
+          "type": "CustomFigure",
+          "id": 211
+        },
+        "customState": {
+          "type": "CustomState",
+          "id": 212
+        }
+      },
+      "nested": {
+        "OriginThreadInfo": {
+          "fields": {
+            "title": {
+              "type": "string",
+              "id": 1
+            },
+            "media": {
+              "rule": "repeated",
+              "type": "Media",
+              "id": 2
+            },
+            "fname": {
+              "type": "string",
+              "id": 4
+            },
+            "tid": {
+              "type": "string",
+              "id": 5
+            },
+            "fid": {
+              "type": "int64",
+              "id": 7
+            },
+            "voiceInfo": {
+              "rule": "repeated",
+              "type": "Voice",
+              "id": 12
+            },
+            "videoInfo": {
+              "type": "VideoInfo",
+              "id": 13
+            },
+            "content": {
+              "rule": "repeated",
+              "type": "PbContent",
+              "id": 14
+            },
+            "pollInfo": {
+              "type": "PollInfo",
+              "id": 21
+            },
+            "pid": {
+              "type": "int64",
+              "id": 25
+            }
+          }
+        },
+        "CustomFigure": {
+          "fields": {
+            "backgroundValue": {
+              "type": "string",
+              "id": 3
+            }
+          }
+        },
+        "CustomState": {
+          "fields": {
+            "content": {
+              "type": "string",
+              "id": 2
+            }
+          }
+        }
+      }
+    },
+    "Voice": {
+      "fields": {
+        "duringTime": {
+          "type": "int32",
+          "id": 2
+        },
+        "voiceMd5": {
+          "type": "string",
+          "id": 3
+        }
+      }
+    },
+    "PollInfo": {
+      "fields": {
+        "isMulti": {
+          "type": "int32",
+          "id": 2
+        },
+        "totalNum": {
+          "type": "int64",
+          "id": 3
+        },
+        "options": {
+          "rule": "repeated",
+          "type": "PollOption",
+          "id": 9
+        },
+        "totalPoll": {
+          "type": "int64",
+          "id": 11
+        },
+        "title": {
+          "type": "string",
+          "id": 12
+        }
+      },
+      "nested": {
+        "PollOption": {
+          "fields": {
+            "num": {
+              "type": "int64",
+              "id": 2
+            },
+            "text": {
+              "type": "string",
+              "id": 3
+            }
+          }
+        }
+      }
+    },
+    "VideoInfo": {
+      "fields": {
+        "videoUrl": {
+          "type": "string",
+          "id": 2
+        },
+        "videoDuration": {
+          "type": "uint32",
+          "id": 3
+        },
+        "videoWidth": {
+          "type": "uint32",
+          "id": 4
+        },
+        "videoHeight": {
+          "type": "uint32",
+          "id": 5
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "id": 6
+        },
+        "playCount": {
+          "type": "int32",
+          "id": 10
+        }
+      }
+    },
+    "Media": {
+      "fields": {
+        "type": {
+          "type": "int32",
+          "id": 1
+        },
+        "smallPic": {
+          "type": "string",
+          "id": 2
+        },
+        "bigPic": {
+          "type": "string",
+          "id": 3
+        },
+        "waterPic": {
+          "type": "string",
+          "id": 4
+        },
+        "width": {
+          "type": "uint32",
+          "id": 10
+        },
+        "height": {
+          "type": "uint32",
+          "id": 11
+        },
+        "originPic": {
+          "type": "string",
+          "id": 15
+        },
+        "originSize": {
+          "type": "uint32",
+          "id": 16
+        }
+      }
+    },
+    "FrsPageReqIdl": {
+      "fields": {
+        "data": {
+          "type": "DataReq",
+          "id": 1
+        }
+      },
+      "nested": {
+        "DataReq": {
+          "fields": {
+            "common": {
+              "type": "CommonReq",
+              "id": 39
+            },
+            "kw": {
+              "type": "string",
+              "id": 1
+            },
+            "rn": {
+              "type": "int32",
+              "id": 2
+            },
+            "rnNeed": {
+              "type": "int32",
+              "id": 3
+            },
+            "isGood": {
+              "type": "int32",
+              "id": 4
+            },
+            "cid": {
+              "type": "int32",
+              "id": 5
+            },
+            "pn": {
+              "type": "int32",
+              "id": 15
+            },
+            "sortType": {
+              "type": "int32",
+              "id": 47
+            }
+          }
+        }
+      }
+    },
+    "FrsPageResIdl": {
+      "fields": {
+        "error": {
+          "type": "Error",
+          "id": 1
+        },
+        "data": {
+          "type": "DataRes",
+          "id": 2
+        }
+      },
+      "nested": {
+        "DataRes": {
+          "fields": {
+            "forum": {
+              "type": "ForumInfo",
+              "id": 2
+            },
+            "page": {
+              "type": "Page",
+              "id": 4
+            },
+            "threadList": {
+              "rule": "repeated",
+              "type": "ThreadInfo",
+              "id": 7
+            },
+            "userList": {
+              "rule": "repeated",
+              "type": "User",
+              "id": 17
+            },
+            "navTabInfo": {
+              "type": "NavTabInfo",
+              "id": 37
+            },
+            "forumRule": {
+              "type": "ForumRuleStatus",
+              "id": 105
+            }
+          },
+          "nested": {
+            "ForumInfo": {
+              "fields": {
+                "id": {
+                  "type": "int64",
+                  "id": 1
+                },
+                "name": {
+                  "type": "string",
+                  "id": 2
+                },
+                "firstClass": {
+                  "type": "string",
+                  "id": 3
+                },
+                "secondClass": {
+                  "type": "string",
+                  "id": 4
+                },
+                "memberNum": {
+                  "type": "int32",
+                  "id": 9
+                },
+                "threadNum": {
+                  "type": "int32",
+                  "id": 10
+                },
+                "postNum": {
+                  "type": "int32",
+                  "id": 11
+                },
+                "managers": {
+                  "rule": "repeated",
+                  "type": "Manager",
+                  "id": 17
+                }
+              },
+              "nested": {
+                "Manager": {
+                  "fields": {}
+                }
+              }
+            },
+            "NavTabInfo": {
+              "fields": {
+                "tab": {
+                  "rule": "repeated",
+                  "type": "FrsTabInfo",
+                  "id": 1
+                }
+              }
+            },
+            "ForumRuleStatus": {
+              "fields": {
+                "hasForumRule": {
+                  "type": "int32",
+                  "id": 4
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "FrsTabInfo": {
+      "fields": {
+        "tabId": {
+          "type": "int32",
+          "id": 1
+        },
+        "tabName": {
+          "type": "string",
+          "id": 3
         }
       }
     },
@@ -629,263 +1686,6 @@
               }
             }
           }
-        }
-      }
-    },
-    "Media": {
-      "fields": {
-        "type": {
-          "type": "int32",
-          "id": 1
-        },
-        "smallPic": {
-          "type": "string",
-          "id": 2
-        },
-        "bigPic": {
-          "type": "string",
-          "id": 3
-        },
-        "waterPic": {
-          "type": "string",
-          "id": 4
-        },
-        "width": {
-          "type": "uint32",
-          "id": 10
-        },
-        "height": {
-          "type": "uint32",
-          "id": 11
-        },
-        "originPic": {
-          "type": "string",
-          "id": 15
-        },
-        "originSize": {
-          "type": "uint32",
-          "id": 16
-        }
-      }
-    },
-    "Voice": {
-      "fields": {
-        "duringTime": {
-          "type": "int32",
-          "id": 2
-        },
-        "voiceMd5": {
-          "type": "string",
-          "id": 3
-        }
-      }
-    },
-    "PollInfo": {
-      "fields": {
-        "isMulti": {
-          "type": "int32",
-          "id": 2
-        },
-        "totalNum": {
-          "type": "int64",
-          "id": 3
-        },
-        "options": {
-          "rule": "repeated",
-          "type": "PollOption",
-          "id": 9
-        },
-        "totalPoll": {
-          "type": "int64",
-          "id": 11
-        },
-        "title": {
-          "type": "string",
-          "id": 12
-        }
-      },
-      "nested": {
-        "PollOption": {
-          "fields": {
-            "num": {
-              "type": "int64",
-              "id": 2
-            },
-            "text": {
-              "type": "string",
-              "id": 3
-            }
-          }
-        }
-      }
-    },
-    "VideoInfo": {
-      "fields": {
-        "videoUrl": {
-          "type": "string",
-          "id": 2
-        },
-        "videoDuration": {
-          "type": "uint32",
-          "id": 3
-        },
-        "videoWidth": {
-          "type": "uint32",
-          "id": 4
-        },
-        "videoHeight": {
-          "type": "uint32",
-          "id": 5
-        },
-        "thumbnailUrl": {
-          "type": "string",
-          "id": 6
-        },
-        "playCount": {
-          "type": "int32",
-          "id": 10
-        }
-      }
-    },
-    "PbContent": {
-      "fields": {
-        "type": {
-          "type": "uint32",
-          "id": 1
-        },
-        "text": {
-          "type": "string",
-          "id": 2
-        },
-        "link": {
-          "type": "string",
-          "id": 3
-        },
-        "src": {
-          "type": "string",
-          "id": 4
-        },
-        "bsize": {
-          "type": "string",
-          "id": 5
-        },
-        "cdnSrc": {
-          "type": "string",
-          "id": 8
-        },
-        "bigCdnSrc": {
-          "type": "string",
-          "id": 9
-        },
-        "c": {
-          "type": "string",
-          "id": 11
-        },
-        "voiceMd5": {
-          "type": "string",
-          "id": 12
-        },
-        "duringTime": {
-          "type": "uint32",
-          "id": 13
-        },
-        "uid": {
-          "type": "int64",
-          "id": 15
-        },
-        "width": {
-          "type": "uint32",
-          "id": 18
-        },
-        "height": {
-          "type": "uint32",
-          "id": 19
-        },
-        "originSrc": {
-          "type": "string",
-          "id": 25
-        },
-        "originSize": {
-          "type": "uint32",
-          "id": 27
-        },
-        "count": {
-          "type": "int32",
-          "id": 28
-        },
-        "tiebaplusInfo": {
-          "type": "TiebaPlusInfo",
-          "id": 40
-        },
-        "item": {
-          "type": "Item",
-          "id": 41
-        }
-      },
-      "nested": {
-        "TiebaPlusInfo": {
-          "fields": {
-            "title": {
-              "type": "string",
-              "id": 1
-            },
-            "desc": {
-              "type": "string",
-              "id": 2
-            },
-            "jumpUrl": {
-              "type": "string",
-              "id": 3
-            },
-            "appIcon": {
-              "type": "string",
-              "id": 6
-            },
-            "targetType": {
-              "type": "int32",
-              "id": 12
-            },
-            "h5JumpType": {
-              "type": "int32",
-              "id": 13
-            },
-            "h5JumpNumber": {
-              "type": "string",
-              "id": 14
-            },
-            "h5JumpParam": {
-              "type": "string",
-              "id": 15
-            },
-            "jumpType": {
-              "type": "int32",
-              "id": 16
-            },
-            "buttonDesc": {
-              "type": "string",
-              "id": 23
-            }
-          }
-        },
-        "Item": {
-          "fields": {
-            "itemName": {
-              "type": "string",
-              "id": 2
-            }
-          }
-        }
-      }
-    },
-    "Agree": {
-      "fields": {
-        "agreeNum": {
-          "type": "int64",
-          "id": 1
-        },
-        "disagreeNum": {
-          "type": "int64",
-          "id": 4
         }
       }
     }

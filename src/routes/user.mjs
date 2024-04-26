@@ -1,7 +1,7 @@
 import {Hono} from "hono/quick";
 
-import {postReqSerialize, postResDeserialize} from "../ProtobufParser.mjs";
-import {baseUrl, packRequest, postFormData, postProtobuf, unpack, unpackSimplePost} from "../utils.mjs";
+import {userPostReqSerialize, userPostResDeserialize} from "../ProtobufParser.mjs";
+import {baseUrl, packRequest, postFormData, postProtobuf, unpack, unpackSimpleUserPost} from "../utils.mjs";
 
 const user = new Hono()
 
@@ -115,14 +115,14 @@ user.get('/posts', async (c) => {
     const promises = [];
     const [from,to] =  params['batch'].split(',');
     for (let i = Number(from); i <= Number(to); i++) {
-      promises.push(postReqSerialize(params['uid'], i));
+      promises.push(userPostReqSerialize(params['uid'], i));
     }
     const buffers = await Promise.all(promises);
     const results = await Promise.all(buffers.map(buffer => postProtobuf('/c/u/feed/userpost?cmd=303002', buffer)));
-    responseData = await Promise.all(results.map(res => postResDeserialize(res)));
+    responseData = await Promise.all(results.map(res => userPostResDeserialize(res)));
     responseData = responseData.flat()
   } else {
-    const buffer = await postReqSerialize(params['uid'], params['page'] || 1);
+    const buffer = await userPostReqSerialize(params['uid'], params['page'] || 1);
     const res = await postProtobuf('/c/u/feed/userpost?cmd=303002', buffer);
     if (res.byteLength < 200) {
       return c.json({
@@ -133,13 +133,13 @@ user.get('/posts', async (c) => {
         }
       }, 404);
     }
-    responseData = await postResDeserialize(res);
+    responseData = await userPostResDeserialize(res);
   }
   if (params.hasOwnProperty('raw')) {
     return c.json(responseData);
   }
   if (params.hasOwnProperty('simple')) {
-    const unpackedJson = await unpackSimplePost(responseData);
+    const unpackedJson = await unpackSimpleUserPost(responseData);
     return c.json({result:unpackedJson, cost: new Date().getTime() - time, length: unpackedJson.length});
   }
   const unpackedJson = await unpack(responseData, params.hasOwnProperty('needForumName'));
