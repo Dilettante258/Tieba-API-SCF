@@ -58,19 +58,20 @@ export async function postReqSerialize(params) {
       kz: params['tid'],
       pn: params['page'] || 1,
       rn: params['rn'] || 50,
-      r: params['sort'] || 'ASC',
-      lz: params['only_thread_author'] || false,
+      // 1 时间倒序 2 热门排序 3及以上 时间正序
+      r: params['sort'] || 3,
+      lz: params['onlyThreadAuthor'] || false,
       common: {
         _clientType: 2,
         _clientVersion: "12.59.1.0",
       }
     }
   };
-  if (params.hasOwnProperty('with_comments')) {
+  if (params.hasOwnProperty('withComment')) {
     payload.data.common.BDUSS = process.env.BDUSS;
     payload.data.withFloor = true;
     payload.data.floorSortType = params.hasOwnProperty('CommentsSortByTime') ? false : true;
-    payload.data.floorRn = params['comment_rn'] || '4';
+    payload.data.floorRn = params['commentRn'] || '4';
   }
 
   const message = Proto.create(payload);
@@ -91,9 +92,11 @@ export async function threadReqSerialize(params) {
       kw: params['fname'],
       pn: params['page'] || 1,
       rn: 105,
-      rn_need: params['rn'] > 0 ? params['rn'] : 1,
-      is_good: params.hasOwnProperty('OnlyGood'),
-      sort_type: params['sort'] || 'REPLY',
+      rnNeed: params['rn'] > 0 ? params['rn'] : 30, // 最大100
+      isGood: params.hasOwnProperty('OnlyGood'),
+      // 对于有热门分区的贴吧 0热门排序(HOT) 1按发布时间(CREATE) 2关注的人(FOLLOW) 34热门排序(HOT) >=5是按回复时间(REPLY)
+      // 对于无热门分区的贴吧 0按回复时间(REPLY) 1按发布时间(CREATE) 2关注的人(FOLLOW) >=3按回复时间(REPLY)
+      sortType: params['sort'] || 1,
       common: {
         _clientType: 2,
         _clientVersion: "12.59.1.0",
@@ -102,6 +105,7 @@ export async function threadReqSerialize(params) {
   };
   const message = Proto.create(payload);
   const buffer = Proto.encode(message).finish()
+  console.log(Proto.decode(Buffer.from(buffer)))  // debug;
   return Buffer.from(buffer);
 }
 

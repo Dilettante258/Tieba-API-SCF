@@ -62,7 +62,7 @@ export const unpack = async (posts,needForumName=false) => {
   return result;
 }
 
-function processContent(data, emojicounter, emoticonCounter) {
+export function processContent(data, emojicounter, emoticonCounter, needPlainText=false) {
   let resultString = '';
   const emojiRegex = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
   data.forEach(item => {
@@ -84,13 +84,13 @@ function processContent(data, emojicounter, emoticonCounter) {
           emoticonCounter[item.c] = 0;
         }
         emoticonCounter[item.c]++;
-        resultString += `#(${item.c})`;
+        resultString += needPlainText ? " ": `#(${item.c})`;
         break;
       case 3:
-        resultString += `#[图片]`;
+        resultString += needPlainText ? " ": `#[图片]`;
         break;
       case 4:
-        resultString += `${item.text}`;
+        resultString += needPlainText ? " ": `${item.text}`;
         break;
       default:
         // 其他类型可以在这里处理，或者忽略
@@ -100,7 +100,7 @@ function processContent(data, emojicounter, emoticonCounter) {
   return resultString;
 }
 
-export const unpackPost = async (posts) => {
+export const unpackPost = async (posts, needPlainText=false, withComment=false) => {
   let result = [];
   let emojicounter = {};
   let emoticonCounter = {};
@@ -109,18 +109,20 @@ export const unpackPost = async (posts) => {
       ...post,
       id: String(post.id),
       authorId: String(post.authorId),
-      content: processContent(post.content, emojicounter, emoticonCounter),
-      subPostList: post.subPostNumber>0 ? post.subPostList.subPostList.map(subPost => {
+      content: processContent(post.content, emojicounter, emoticonCounter, needPlainText),
+    });
+    if (withComment) {
+      result.at(-1).subPostList = post.subPostNumber>0 ? post.subPostList.subPostList.map(subPost => {
         return {
           id: String(subPost.id),
           authorId: String(subPost.authorId),
           time: subPost.time,
-          content: processContent(subPost.content, emojicounter, emoticonCounter),
+          content: processContent(subPost.content, emojicounter, emoticonCounter, needPlainText),
         }
-      }) : [],
-    });
+      }) : []
+    }
     if (post?.signature) {
-      result.at(-1).signature = processContent(post.signature.content, emojicounter, emoticonCounter);
+      result.at(-1).signature = processContent(post.signature.content, emojicounter, emoticonCounter, needPlainText);
     }
   }
   return [result, emojicounter, emoticonCounter];
@@ -204,4 +206,57 @@ export function packRequest(params) {
   const sign = Md5.hashStr(string + 'tiebaclient!!!').toUpperCase();
   params.append('sign', sign);
   return Array.from(params.entries()).map(entry => entry.join('=')).join('&');
+}
+
+export function countUserAttributes(userList) {
+  const counts = {
+    ipAddress: {},
+    levelId: {},
+    gender: {}
+  };
+
+  for (const obj of userList) {
+    const { ipAddress, levelId, gender } = obj;
+
+    // 统计 ipAddress 出现次数
+    if (ipAddress) {
+      if (counts.ipAddress[ipAddress]) {
+        counts.ipAddress[ipAddress]++;
+      } else {
+        counts.ipAddress[ipAddress] = 1;
+      }
+    }
+
+    // 统计 levelId 出现次数
+    if (levelId) {
+      if (counts.levelId[levelId]) {
+        counts.levelId[levelId]++;
+      } else {
+        counts.levelId[levelId] = 1;
+      }
+    }
+
+    // 统计 gender 出现次数
+    if (gender !== undefined) {
+      if (counts.gender[gender]) {
+        counts.gender[gender]++;
+      } else {
+        counts.gender[gender] = 1;
+      }
+    }
+  }
+
+  // 转换成所需的格式
+  const ipAddressResult = [];
+
+  // ipAddress按倒序排列
+  const sortIpList = Object.entries(counts.ipAddress).sort((a, b) => b[1] - a[1]);
+
+  for (const item of sortIpList) {
+    ipAddressResult.push({ name: item[0], value: item[1] });
+  }
+
+  counts.ipAddress = ipAddressResult;
+
+  return counts;
 }
