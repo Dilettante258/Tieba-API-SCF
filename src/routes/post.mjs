@@ -9,20 +9,14 @@ user.get('/', (c) => c.text('Post Api')) // GET /user
 
 
 
-export async function getPost(params) {
+export async function getPost(params, needLength = false) {
   let responseData;
   const buffer = await postReqSerialize(params);
   let res;
+  
   try {
-    res = await postProtobuf('/c/f/pb/page?cmd=303002', buffer);
-  } catch (e) {
-    return null;
-  }
-  if (res.byteLength < 200) {
-    return null;
-  }
-  try {
-    responseData = await postResDeserialize(res);
+    responseData = await postProtobuf('/c/f/pb/page?cmd=303002', buffer)
+    .then(res => postResDeserialize(res))
   } catch (e) {
     return null;
   }
@@ -74,11 +68,9 @@ export async function getPost(params) {
     const filterUsers = params.filterUsers.split(',');
     temp_postList = responseData.postList.filter(post => filterUsers.includes(String(post.authorId)) );
   }
-
   if (!params.hasOwnProperty('require')) { params['require'] = 'postList,thread,forum,counter,timeLine,withComment'; }
   const require = params.require.split(',');
   let [postList, emojicounter, emoticonCounter] = await unpackPost(temp_postList||responseData.postList, require.includes('plainText'), params.hasOwnProperty('withComment'));
-  responseData.postList = null;  
   if (require.includes('postList')) {
     result = {...result, postList};
   }
@@ -112,6 +104,9 @@ export async function getPost(params) {
     timeLine.sort((a, b) => a - b);
     result = {...result, timeLine};
   }
+  if (needLength) {
+    return [result, responseData.postList.length]
+  }
   return result;
 }
 
@@ -125,12 +120,14 @@ user.get('/getPost', async (c) => {
   const time = new Date().getTime();
   let params  = c.req.query()
   let toResponse = {};
-  toResponse.result = await getPost(params);
-  toResponse.cost = new Date().getTime() - time;
+  let length;
+  [toResponse.result, length] = await getPost(params, true);
+
   if (toResponse.result == null) {
     return c.json(toResponse, 404);
   }
-  toResponse.length =  toResponse.result.postList.length;
+  toResponse.length =  length;
+  toResponse.cost = new Date().getTime() - time;
   return c.json(toResponse);
 })
 
