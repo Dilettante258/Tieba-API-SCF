@@ -57,7 +57,7 @@ export async function postReqSerialize(params) {
     data: {
       kz: params['tid'],
       pn: params['page'] || 1,
-      rn: params['rn'] || 50,
+      rn: params['rn'] || 30, //最大30
       // 1 时间倒序 2 热门排序 3及以上 时间正序
       r: params['sort'] || 3,
       lz: params['onlyThreadAuthor'] || false,

@@ -21,17 +21,40 @@ user.get('/getPost', async (c) => {
     }
   responseData = await postResDeserialize(res);
   if (params.hasOwnProperty('needAll') && responseData.page.totalPage !== '1') {
-    const promises = [];
-    for (let i = 2; i <= Number(responseData.page.totalPage); i++) {
-      params.page = i.toString();
-      promises.push(postReqSerialize(params));
+    let totalPage = Number(responseData.page.totalPage);
+    if (params.hasOwnProperty('maxPage')) {
+        totalPage = Math.min(totalPage, Number(params.maxPage)); // limit totalPage to maxPage if it exists
     }
-    const buffers = await Promise.all(promises);
-    const results = await Promise.all(buffers.map(buffer => postProtobuf('/c/f/pb/page?cmd=303002', buffer)));
-    let temp = await Promise.all(results.map(res => postResDeserialize(res)));
-    temp = temp.flat();
-    const allPosts = temp.map(item => item.postList).reduce((acc, val) => acc.concat(val), []);
-    const allUsers = temp.map(item => item.userList).reduce((acc, val) => acc.concat(val), []);
+    let batch = 1;
+    if (totalPage > 70 && totalPage <= 250) batch = 2;
+    if (totalPage > 250) batch = 3;
+    if (totalPage > 400) batch = 4;
+    if (totalPage > 600) batch = 8;
+    const batchSize = Math.ceil(totalPage / batch);
+
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    let allPosts = [];
+    let allUsers = [];
+
+    for (let b = 0; b < batch; b++) {
+        const promises = [];
+        for (let i = b * batchSize + 2; i <= (b + 1) * batchSize && i <= totalPage; i++) {
+            params.page = i.toString();
+            promises.push(postReqSerialize(params));
+        }
+        const buffers = await Promise.all(promises);
+        const results = await Promise.all(buffers.map(buffer => postProtobuf('/c/f/pb/page?cmd=303002', buffer)));
+        let temp = await Promise.all(results.map(res => postResDeserialize(res)));
+        temp = temp.flat();
+        const batchPosts = temp.map(item => item.postList).reduce((acc, val) => acc.concat(val), []);
+        const batchUsers = temp.map(item => item.userList).reduce((acc, val) => acc.concat(val), []);
+        allPosts.push(...batchPosts);
+        allUsers.push(...batchUsers);
+
+        if (b < batch - 1) await delay(1000); // sleep 1 second between batches
+    }
+
     responseData.postList.push(...allPosts);
     responseData.userList.push(...allUsers);
   }
@@ -51,6 +74,9 @@ user.get('/getPost', async (c) => {
   }
   if (require.includes('thread')) {
     toResponse.result = {...toResponse.result, thread: responseData.thread};
+  }
+  if (require.includes('page')) {
+    toResponse.result = {...toResponse.result, page: responseData.page};
   }
   if (require.includes('forum')) {
     toResponse.result = {...toResponse.result, forum: responseData.forum};

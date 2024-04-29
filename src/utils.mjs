@@ -16,6 +16,8 @@ export async function postFormData(url, data) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: data,
+  }).catch(error => {
+    console.error('Fetch failed:', error);
   });
   return await response.json();
 }
@@ -30,6 +32,8 @@ export async function postProtobuf(url, buffer) {
       'x_bd_data_type': 'protobuf',
     },
     body: data,
+  }).catch(error => {
+    console.error('Fetch failed:', error);
   });
   return await response.arrayBuffer();
 }
@@ -66,8 +70,14 @@ export function processContent(data, emojicounter, emoticonCounter, needPlainTex
   let resultString = '';
   const emojiRegex = /[\uD800-\uDBFF][\uDC00-\uDFFF]/g;
   data.forEach(item => {
+    // if (item.type > startingNumber && item.type < endingNumber) { item.type =  }
     switch (item.type) {
+      //[0, 9, 18, 27, 40]
       case 0:
+      case 9:
+      case 18:
+      case 27:
+      case 40:
         const matches = item.text.match(emojiRegex);
         if (matches) {
           matches.forEach(emoji => {
@@ -79,7 +89,11 @@ export function processContent(data, emojicounter, emoticonCounter, needPlainTex
         }
         resultString += item.text;
         break;
+      case 1:
+        resultString += needPlainText ? `${item.text}`: `${item.text}#[链接]`;
+        break;
       case 2:
+      case 11:
         if (!emoticonCounter[item.c]) {
           emoticonCounter[item.c] = 0;
         }
@@ -87,10 +101,17 @@ export function processContent(data, emojicounter, emoticonCounter, needPlainTex
         resultString += needPlainText ? " ": `#(${item.c})`;
         break;
       case 3:
+      case 20:
         resultString += needPlainText ? " ": `#[图片]`;
         break;
       case 4:
         resultString += needPlainText ? " ": `${item.text}`;
+        break;
+      case 5:
+        resultString += needPlainText ? " ": `#[视频]`;
+        break;
+      case 10:
+        resultString += needPlainText ? " ": `#[语音]`;
         break;
       default:
         // 其他类型可以在这里处理，或者忽略

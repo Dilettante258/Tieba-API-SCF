@@ -67,6 +67,9 @@ forum.get('/getThreads',  async (c) => {
   if (require.includes('forum')) {
     toResponse.result = {...toResponse.result, forum: responseData.forum};
   }
+  if (require.includes('page')) {
+    toResponse.result = {...toResponse.result, page: responseData.page};
+  }
   if (require.includes('pidList')) {
     let pidList = threadList.map(thread => thread.id);
     toResponse.result = {...toResponse.result, pidList};
