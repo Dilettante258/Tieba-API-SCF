@@ -146,6 +146,13 @@ export const unpackPost = async (posts, needPlainText=false, withComment=false) 
       result.at(-1).signature = processContent(post.signature.content, emojicounter, emoticonCounter, needPlainText);
     }
   }
+  //处理特殊情况
+  delete emoticonCounter[""];
+  delete emoticonCounter.undefined;
+  if (emoticonCounter['升起']) {
+    emoticonCounter['生气'] = emoticonCounter['升起'];
+    delete emoticonCounter['升起'];
+  }
   return [result, emojicounter, emoticonCounter];
 }
 
@@ -280,4 +287,82 @@ export function countUserAttributes(userList) {
   counts.ipAddress = ipAddressResult;
 
   return counts;
+}
+
+export async function handlePromises(promises, maxConcurrent = 100, delay = 1000) {
+  const results = [];
+  for (let i = 0; i < promises.length; i += maxConcurrent) {
+      const chunk = promises.slice(i, i + maxConcurrent);
+      results.push(...await Promise.all(chunk));
+      if (i + maxConcurrent < promises.length) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+      }
+  }
+  return results;
+}
+
+export function mergeCounters(array) {
+  let result = {
+      emojicounter: {},
+      emoticonCounter: {},
+      userAttributesCount: {
+          ipAddress: [],
+          levelId: {},
+          gender: {}
+      },
+      timeLine: []
+  };
+
+  array.forEach(item => {
+      // Merge emojicounter
+      for (let emoji in item.emojicounter) {
+          if (result.emojicounter[emoji]) {
+              result.emojicounter[emoji] += item.emojicounter[emoji];
+          } else {
+              result.emojicounter[emoji] = item.emojicounter[emoji];
+          }
+      }
+
+      // Merge emoticonCounter
+      for (let emoticon in item.emoticonCounter) {
+          if (result.emoticonCounter[emoticon]) {
+              result.emoticonCounter[emoticon] += item.emoticonCounter[emoticon];
+          } else {
+              result.emoticonCounter[emoticon] = item.emoticonCounter[emoticon];
+          }
+      }
+
+      // Merge userAttributesCount.ipAddress
+      item.userAttributesCount.ipAddress.forEach(ip => {
+          let index = result.userAttributesCount.ipAddress.findIndex(i => i.name === ip.name);
+          if (index !== -1) {
+              result.userAttributesCount.ipAddress[index].value += ip.value;
+          } else {
+              result.userAttributesCount.ipAddress.push({ ...ip });
+          }
+      });
+
+      // Merge userAttributesCount.levelId
+      for (let level in item.userAttributesCount.levelId) {
+          if (result.userAttributesCount.levelId[level]) {
+              result.userAttributesCount.levelId[level] += item.userAttributesCount.levelId[level];
+          } else {
+              result.userAttributesCount.levelId[level] = item.userAttributesCount.levelId[level];
+          }
+      }
+
+      // Merge userAttributesCount.gender
+      for (let gender in item.userAttributesCount.gender) {
+          if (result.userAttributesCount.gender[gender]) {
+              result.userAttributesCount.gender[gender] += item.userAttributesCount.gender[gender];
+          } else {
+              result.userAttributesCount.gender[gender] = item.userAttributesCount.gender[gender];
+          }
+      }
+
+      // Merge timeLine
+      result.timeLine = result.timeLine.concat(item.timeLine).sort((a, b) => a - b);
+  });
+
+  return result;
 }

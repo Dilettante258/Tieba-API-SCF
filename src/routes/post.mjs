@@ -7,19 +7,25 @@ const user = new Hono()
 
 user.get('/', (c) => c.text('Post Api')) // GET /user
 
-user.get('/getPost', async (c) => {
-  const time = new Date().getTime();
-  let params  = c.req.query()
+
+
+export async function getPost(params) {
   let responseData;
   const buffer = await postReqSerialize(params);
-    const res = await postProtobuf('/c/f/pb/page?cmd=303002', buffer);
-    if (res.byteLength < 200) {
-      return c.json({
-        "code": 404,
-        "data": []
-      }, 404);
-    }
-  responseData = await postResDeserialize(res);
+  let res;
+  try {
+    res = await postProtobuf('/c/f/pb/page?cmd=303002', buffer);
+  } catch (e) {
+    return null;
+  }
+  if (res.byteLength < 200) {
+    return null;
+  }
+  try {
+    responseData = await postResDeserialize(res);
+  } catch (e) {
+    return null;
+  }
   if (params.hasOwnProperty('needAll') && responseData.page.totalPage !== '1') {
     let totalPage = Number(responseData.page.totalPage);
     if (params.hasOwnProperty('maxPage')) {
@@ -51,7 +57,6 @@ user.get('/getPost', async (c) => {
         const batchUsers = temp.map(item => item.userList).reduce((acc, val) => acc.concat(val), []);
         allPosts.push(...batchPosts);
         allUsers.push(...batchUsers);
-
         if (b < batch - 1) await delay(1000); // sleep 1 second between batches
     }
 
@@ -59,37 +64,45 @@ user.get('/getPost', async (c) => {
     responseData.userList.push(...allUsers);
   }
 
-  let toResponse = { result: {} }
+  let result = {}
   if (params.hasOwnProperty('raw')) {
-    return c.json(responseData);
+    return responseData;
   }
+  
+  let temp_postList;
+  if(params.hasOwnProperty('filterUsers')) {
+    const filterUsers = params.filterUsers.split(',');
+    temp_postList = responseData.postList.filter(post => filterUsers.includes(String(post.authorId)) );
+  }
+
   if (!params.hasOwnProperty('require')) { params['require'] = 'postList,thread,forum,counter,timeLine,withComment'; }
   const require = params.require.split(',');
-  const [postList, emojicounter, emoticonCounter] = await unpackPost(responseData.postList, require.includes('plainText'), params.hasOwnProperty('withComment'));
+  let [postList, emojicounter, emoticonCounter] = await unpackPost(temp_postList||responseData.postList, require.includes('plainText'), params.hasOwnProperty('withComment'));
+  responseData.postList = null;  
   if (require.includes('postList')) {
-    toResponse.result = {...toResponse.result, postList};
+    result = {...result, postList};
   }
   if (require.includes('userList')) {
-    toResponse.result = {...toResponse.result, userList: responseData.userList};
+    result = {...result, userList: responseData.userList};
   }
   if (require.includes('thread')) {
-    toResponse.result = {...toResponse.result, thread: responseData.thread};
+    result = {...result, thread: responseData.thread};
   }
   if (require.includes('page')) {
-    toResponse.result = {...toResponse.result, page: responseData.page};
+    result = {...result, page: responseData.page};
   }
   if (require.includes('forum')) {
-    toResponse.result = {...toResponse.result, forum: responseData.forum};
+    result = {...result, forum: responseData.forum};
   }
   if (require.includes('counter')) {
-    toResponse.result = {...toResponse.result,
+    result = {...result,
       emojicounter, emoticonCounter, userAttributesCount: countUserAttributes(responseData.userList)};
   }
   if (require.includes('plainText')) {
     let contentList = postList.map(post => post.content);
     if (params.hasOwnProperty('withComment')) {
       contentList = contentList.concat(postList.map(post => post.subPostList.map(subPost => subPost.content)).flat());}
-    toResponse.result = {...toResponse.result, contentList};
+    result = {...result, contentList};
   }
   if (require.includes('timeLine')) {
     let timeLine = postList.map(post => post.time);
@@ -97,10 +110,27 @@ user.get('/getPost', async (c) => {
     if (params.hasOwnProperty('withComment')) {
       timeLine = timeLine.concat(postList.map(post => post.subPostList.map(subPost => subPost.time)).flat());}
     timeLine.sort((a, b) => a - b);
-    toResponse.result = {...toResponse.result, timeLine};
+    result = {...result, timeLine};
   }
+  return result;
+}
+
+
+
+
+
+
+
+user.get('/getPost', async (c) => {
+  const time = new Date().getTime();
+  let params  = c.req.query()
+  let toResponse = {};
+  toResponse.result = await getPost(params);
   toResponse.cost = new Date().getTime() - time;
-  toResponse.length =  responseData.postList.length;
+  if (toResponse.result == null) {
+    return c.json(toResponse, 404);
+  }
+  toResponse.length =  toResponse.result.postList.length;
   return c.json(toResponse);
 })
 

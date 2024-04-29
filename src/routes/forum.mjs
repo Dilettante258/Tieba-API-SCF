@@ -1,9 +1,9 @@
 import {Hono} from "hono/quick";
 
-import {getForumName} from "../utils.mjs";
+import {getForumName, handlePromises, mergeCounters} from "../utils.mjs";
 import {threadReqSerialize, threadResDeserialize} from "../ProtobufParser.mjs";
 import {postProtobuf, unpackThread, processContent, countUserAttributes} from "../utils.mjs";
-import { type } from "os";
+
 
 const forum = new Hono()
 
@@ -13,9 +13,7 @@ forum.get('/getName',  async (c) => {
   return c.text(fname)
 })
 
-forum.get('/getThreads',  async (c) => {
-  const time = new Date().getTime();
-  let params  = c.req.query()
+export async function getThread(params) {
   let responseData;
   if (params.hasOwnProperty('batch')) {
     const promises = [];
@@ -51,12 +49,18 @@ forum.get('/getThreads',  async (c) => {
     responseData = await threadResDeserialize(res);
   }
   if (params.hasOwnProperty('raw')) {
-    return c.json(responseData);
+    return responseData;
   }
   let toResponse = { result: {} }
-  if (!params.hasOwnProperty('require')) { params['require'] = 'threadList,forum,pidList,counter,timeLine'; }
+  if (!params.hasOwnProperty('require')) { params['require'] = 'threadList,forum,tidList,counter,timeLine'; }
   const require = params.require.split(',');
-  const [threadList, emojicounter, emoticonCounter] = await unpackThread(responseData.threadList, require.includes('plainText'));
+  let temp_threadList;
+  if(params.hasOwnProperty('filterUsers')) {
+    const filterUsers = params.filterUsers.split(',');
+    temp_threadList = responseData.threadList.filter(thread => filterUsers.includes(String(thread.authorId)) );
+  }
+  let [threadList, emojicounter, emoticonCounter] = await unpackThread(temp_threadList||responseData.threadList, require.includes('plainText'));
+  responseData.threadList = null;
   threadList.map( thread => { processContent([{type: 0, text: thread.title}], emojicounter, emoticonCounter) }) //统计标题的emoji
   if (require.includes('threadList')) {
     toResponse.result = {...toResponse.result, threadList};
@@ -70,9 +74,9 @@ forum.get('/getThreads',  async (c) => {
   if (require.includes('page')) {
     toResponse.result = {...toResponse.result, page: responseData.page};
   }
-  if (require.includes('pidList')) {
-    let pidList = threadList.map(thread => thread.id);
-    toResponse.result = {...toResponse.result, pidList};
+  if (require.includes('tidList')) {
+    let tidList = threadList.map(thread => thread.id);
+    toResponse.result = {...toResponse.result, tidList};
   }
   if (require.includes('counter')) {
     toResponse.result = {...toResponse.result,
@@ -87,8 +91,64 @@ forum.get('/getThreads',  async (c) => {
     timeLine.sort((a, b) => a - b);
     toResponse.result = {...toResponse.result, timeLine};
   }
+  toResponse.length =  threadList.length;
+  return toResponse;
+}
+
+
+forum.get('/getThreads',  async (c) => {
+  const time = new Date().getTime();
+  let params  = c.req.query();
+  let toResponse = await getThread(params);
   toResponse.cost = new Date().getTime() - time;
-  toResponse.length =  responseData.threadList.length;
+  return c.json(toResponse);
+})
+
+import {getPost} from "./post.mjs";
+
+forum.get('/getBatchPostDetail',  async (c) => {
+  let toResponse = {};
+  const time = new Date().getTime();
+  let params  = c.req.query();
+  let getThreadParams = {
+    ...params,
+    rn: params.rn || 100,
+    require: 'tidList',
+  }
+  delete getThreadParams.filterUsers;
+  let { result: {tidList} } = await getThread(getThreadParams);
+  let promises = [];
+  if(!params.hasOwnProperty('require')) {
+    params.require = "postList";
+  }
+  if(params.hasOwnProperty('forToolbox')) {
+    params.require = "postList,counter,timeLine,plainText";
+  }
+  for(let i = 0; i < tidList.length; i++) {
+    let getPostParams = {
+      ...params,
+      tid: tidList[i],
+      require: params.require || 'postList',
+      needAll: true,
+      maxPage: 30,
+    }
+    delete getPostParams.page;
+    promises.push(getPost(getPostParams));
+  }
+  let results = await handlePromises(promises, 300, params.sleepTime||3500);
+  
+  if(params.require.includes('postList')) {
+    let postList = results.flatMap( t => t.postList)
+    toResponse.postList = postList;
+  }
+  if(params.hasOwnProperty('forToolbox')) {
+    let postList = toResponse.postList.flatMap( t => t.content)
+    toResponse.postList = postList;
+  }
+  if (params.require.includes('counter')) {
+    toResponse.counter = mergeCounters(results);
+  }
+  toResponse.cost = new Date().getTime() - time;
   return c.json(toResponse);
 })
 
