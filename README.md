@@ -12,6 +12,10 @@ SCF意指Serverless Cloud Function 云函数。
 
 API使用参考： [Postman文档](https://documenter.getpostman.com/view/32034983/2sA3BuX9Nc)（施工中）
 
+# 环境变量
+
+- **SCF_REQUEST_LIMIT_WINDOW**: 请求频率窗口期，默认值为5分钟（300000ms）。示例值：1000（1秒）
+- **SCF_REQUEST_LIMIT**: 请求窗口期内，最多全局请求数量，如果超过这个数量会返回429。默认值为100（100个请求）。示例值：1（1个请求）
 
 # API
 
