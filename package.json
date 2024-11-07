@@ -1,0 +1,23 @@
+{
+  "name": "tieba-api",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "studio": "npx drizzle-kit studio",
+    "test": "tsx src/test/1.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.4",
+    "dotenv": "^16.4.5",
+    "drizzle-orm": "^0.36.0",
+    "hono": "^4.6.8",
+    "pg": "^8.13.1",
+    "tieba.js": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.27.1",
+    "tsx": "^4.19.2"
+  }
+}
