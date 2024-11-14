@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "studio": "npx drizzle-kit studio",
+    "drizzle-push": "npx drizzle-kit push",
     "test": "tsx src/test/1.ts"
   },
   "dependencies": {
