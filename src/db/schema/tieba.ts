@@ -1,4 +1,5 @@
-import {boolean, char, date, integer, json, pgTable, smallint, text, timestamp, varchar} from "drizzle-orm/pg-core";
+import {boolean, char, date, integer, pgTable, smallint, text, timestamp, varchar} from "drizzle-orm/pg-core";
+
 
 
 export const usersTable = pgTable("users", {
@@ -23,12 +24,14 @@ export const userPostTable = pgTable("userPost", {
 });
 
 export const postTable = pgTable("post", {
+  forumId: integer().notNull(),
+  postId: varchar({ length: 12 }).notNull(),
   id: varchar({ length: 12 }).primaryKey().notNull(),
   floor: integer().notNull(),
-  time: timestamp().notNull(),
+  time: timestamp({ mode: 'string' }).notNull(),
   content: text(),
   subPostNumber: smallint(),
-  authorId: char({ length: 10 }).notNull(),
+  authorId: varchar({ length: 14 }).notNull(),
   ipAddress: varchar({ length: 8 }),
   agreeNum: smallint(),
   disagreeNum: smallint(),
@@ -44,4 +47,17 @@ export const subPostTable = pgTable("subPost", {
   otherId: char({ length: 10 }),
   otherName: varchar({ length: 16 }),
   pgRecordTime: date().defaultNow().notNull(),
+});
+
+
+export const forumKeyTable = pgTable("forumKey", {
+  id: integer().primaryKey().notNull(),
+  name: varchar({ length: 32 }).notNull(),
+});
+
+export const forumMemberTable = pgTable("forumMember", {
+  forumId: integer().notNull(),
+  portrait: varchar({ length: 36 }).notNull(),
+  username: varchar({ length: 32 }),
+  nickname: varchar({ length: 32 }).notNull(),
 });

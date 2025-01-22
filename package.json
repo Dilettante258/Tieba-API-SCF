@@ -5,6 +5,7 @@
     "dev": "tsx watch src/index.ts",
     "studio": "npx drizzle-kit studio",
     "drizzle-push": "npx drizzle-kit push",
+    "drizzle-pull": "npx drizzle-kit pull",
     "test": "tsx src/test/1.ts"
   },
   "dependencies": {
@@ -12,8 +13,7 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.0",
     "hono": "^4.6.8",
-    "pg": "^8.13.1",
-    "tieba.js": "^1.0.3"
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",

@@ -1,53 +1,59 @@
 import {Hono} from "hono";
-import {getInfo, GetUserByUid} from "../../../../../../Repository/tieba.js/dist/User.js";
-import {getUserPost} from "../../../../../../Repository/tieba.js/src/UserPost.js";
+import {getLikeForum, getPanel, getProfile, getUserInfo} from "tieba.js";
+import {getUserPost} from "tieba.js";
+import {getParams} from "../utils/format.js";
 
 
 const user = new Hono().basePath('/user')
+
+// ToDo: 加入自定义错误
 
 user.get('/', (c) => c.text('List Users'))
 
 user.get('/info/:username', async (c) => {
   const username = c.req.param('username');
-  try {
-    const res = await getInfo(username);
-    return c.json(res)
-  }
-  catch (e) {
-    return c.text('User not found', 404)
-  }
+  const res = await getUserInfo(username);
+  return c.json(res)
 })
 
 user.get('/posts', async (c) => {
-  let user_id = 0;
-  const uid = c.req.query('uid');
-  const id = c.req.query('id')
-  const username = c.req.query('name')
-  const page = Number(c.req.query('page'))
-  if(username){
-    user_id = Number(uid);
-    const userdata = await getInfo(username);
-    user_id = userdata.id;
-  } else if(uid) {
-    user_id = Number(uid);
-  } else if(id) {
-    try {
-      const userdata = await GetUserByUid(Number(id))
-      user_id = Number(userdata.id)
-      console.log(user_id)
-    } catch (e) {
-      return c.text('用户不存在', 404)
-    }
+  const user_id= await getParams(c.req, 1) as number;
+  const page = Number(c.req.query('page'));
+  if(user_id===0){
+    c.json({error: '用户不存在'}, 404)
   }
-  try {
-    if(Number.isInteger(page)) {
-      const res = await getUserPost(user_id, page);
-      return c.json(res)
-    }
-  }
-  catch (e) {
-    return c.text('用户不存在', 404)
-  }
+  const res = await getUserPost(user_id, page);
+  return c.json(res)
 })
+
+user.get('/profile', async (c) => {
+  const user_id= await getParams(c.req, 1) as number;
+  if(user_id===0){
+    c.json({error: '用户不存在'}, 404)
+  }
+  const res = await getProfile(user_id);
+  return c.json(res)
+})
+
+user.get('/panel', async (c) => {
+  const un= await getParams(c.req, 2) as string;
+  if(un===""){
+    c.json({error: '用户不存在'}, 404)
+  }
+  const res = await getPanel(un);
+  return c.json(res)
+})
+
+user.get('/likeForum', async (c) => {
+  const user_id= await getParams(c.req, 1) as number;
+  if(user_id===0){
+    c.json({error: '用户不存在'}, 404)
+  }
+  const res = await getLikeForum(user_id, "needAll");
+  return c.json(res)
+})
+
+
+
 
 export default user;
