@@ -1,5 +1,5 @@
 import {type HonoRequest} from "hono";
-import {getUnameFromId, getUserByUid, getUserInfo} from "tieba.js";
+import {getProfile, getUnameFromId, getUserByUid, getUserInfo} from "tieba.js";
 
 export function formatPage(text: string|undefined) {
   const temp = Number(text)
@@ -10,59 +10,67 @@ export function formatPage(text: string|undefined) {
   }
 }
 
-enum method {
-  uid,
-  id,
-  un
+export const enum methodEnum {
+  uid ='uid',
+  id = 'id',
+  un = 'un'
 }
 
-export async function getParams(req: HonoRequest, need: method): Promise<number|string> {
+export type UpdateProperty<T, K extends keyof T, V> = Omit<T, K> & {
+  [P in K]: V;
+};
+
+class DisabledError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DisabledError";
+  }
+}
+
+class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+export async function getParams(method: keyof typeof methodEnum, id: string, need: methodEnum): Promise<number|string> {
   let result = 0;
-  const uid = req.query('uid');
-  const id = req.query('id')
-  const username = req.query('un')
   const un2id = async (un: string) => getUserInfo(un).then((res) => res.id);
+  const id2uid = async (id: string) => getProfile(Number(id)).then((res) => Number(res.user.tiebaUid));
+
   switch (need) {
-    case method.uid:
-      if(uid){
-        return Number(uid);
-      } else if(username) {
-        console.error("暂时不可实现")
-        return 0;
+    case methodEnum.uid:
+      if(method===methodEnum.uid){
+        result = Number(id);
+      } else if(method===methodEnum.un) {
+        const id_ = await un2id(id);
+        result = await id2uid(id_);
       } else if(id) {
-        console.error("暂时不可实现")
-        return 0;
+        result = await id2uid(id);
       }
+      if(result === 0) throw new NotFoundError("未找到用户");
       return result;
-    case method.id:
-      if(id){
+    case methodEnum.id:
+      if(method===methodEnum.id){
         return Number(id);
-      } else if(username) {
-        result = await un2id(username);
-      } else if(uid) {
-        try {
-          const userdata = await getUserByUid(Number(uid))
-          result = Number(userdata.id)
-        } catch (e) {
-          console.error(e)
-          return result;
-        }
+      } else if(method===methodEnum.un) {
+        result = await un2id(id);
+      } else if(method===methodEnum.uid) {
+        const userdata = await getUserByUid(Number(id))
+        result = Number(userdata.id)
       }
+      if(result === 0) throw new NotFoundError("未找到用户");
       return result;
-    case method.un:
-      if(username){
-        return username;
-      } else if(uid) {
-        try {
-          const userdata = await getUserByUid(Number(uid))
-          return userdata.name;
-        } catch (e) {
-          console.error(e)
-          return "";
-        }
-      } else if(id) {
+    case methodEnum.un:
+      if(method===methodEnum.un){
+        return id;
+      } else if(method===methodEnum.uid) {
+        const userdata = await getUserByUid(Number(id))
+        return userdata.name;
+      } else if(method===methodEnum.id) {
         return await getUnameFromId(Number(id));
       }
-      return "";
+      throw new NotFoundError("用户不存在");
   }
 }

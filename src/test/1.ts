@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import {postTable, subPostTable, userPostTable} from "../db/schema/tieba.js";
 import {getPost, getUserPost} from "tieba.js";
-import {collatePost} from "../../../../../../Repository/tieba.js/src/utils/index.js";
+import {collatePost} from "tieba.js";
 
 const db = drizzle(process.env.DATABASE_URL!);
 

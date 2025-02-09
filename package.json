@@ -10,12 +10,16 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.4",
+    "@hono/zod-openapi": "^0.18.4",
+    "@scalar/hono-api-reference": "^0.5.172",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.0",
     "hono": "^4.6.8",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "tieba.js": "^1.1.0"
   },
   "devDependencies": {
+    "@hono/swagger-ui": "^0.5.0",
     "@types/node": "^20.11.17",
     "@types/pg": "^8.11.10",
     "drizzle-kit": "^0.27.1",
