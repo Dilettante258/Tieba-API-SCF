@@ -1,5 +1,5 @@
 import { z } from '@hono/zod-openapi'
-
+import {privSets} from "../commonSchema.js";
 
 export const getUserInfoParamsSchema = z.object({
   username: z
@@ -9,59 +9,9 @@ export const getUserInfoParamsSchema = z.object({
         name: 'username',
         in: 'path',
       },
-      example: 'Admire_02',
+      example: '悲伤逆流成蓮',
     }),
 })
-
-export const ParamsWithPageSchema = z.object({
-  method: z.enum(['uid', 'id', 'un']).openapi({
-    param: {
-      name: 'method',
-      in: 'query'
-    },
-    description: '查询的关键字',
-    example: 'un',
-  }),
-  id: z
-    .string()
-    .openapi({
-      param: {
-        name: 'id',
-        in: 'query'
-      },
-      example: 'Admire_02',
-    }),
-  page: z
-    .string().optional()
-    .openapi({
-      param: {
-        name: 'page',
-        in: 'query'
-      },
-      default: '1',
-    }),
-})
-
-export const ParamsSchema = z.object({
-  method: z.enum(['uid', 'id', 'un']).openapi({
-    param: {
-      name: 'method',
-      in: 'query'
-    },
-    description: '查询的关键字',
-    example: 'un',
-  }),
-  id: z
-    .string()
-    .openapi({
-      param: {
-        name: 'id',
-        in: 'query'
-      },
-      example: 'Admire_02',
-    })
-})
-
 
 export const UserInfoSchema = z.object({
   tbs: z.string().openapi({
@@ -267,33 +217,6 @@ export const userCondenseProfileSchema = z.object({
     })
   })
 }).openapi("userCondenseProfileSchema");
-
-const privSets = z.object({
-  bazhu_show_inside: z.number().openapi({
-    example: 3
-  }),
-  bazhu_show_outside: z.number().openapi({
-    example: 3
-  }),
-  group: z.number().openapi({
-    example: 3
-  }),
-  like: z.number().openapi({
-    example: 3
-  }),
-  live: z.number().openapi({
-    example: 1
-  }),
-  location: z.number().openapi({
-    example: 3
-  }),
-  post: z.number().openapi({
-    example: 3
-  }),
-  reply: z.number().openapi({
-    example: 1
-  })
-}).partial().openapi("privSets");
 
 
 const followItemSchema = z.object({

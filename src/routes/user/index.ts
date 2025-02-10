@@ -7,25 +7,28 @@ import {
   getUserInfo,
   getUserPost, type UserPost
 } from "tieba.js";
-import {getParams, methodEnum, type UpdateProperty} from "../utils/format.js";
+import {getParams, methodEnum, type UpdateProperty} from "../../utils/format.js";
 
 import {createRoute, OpenAPIHono} from '@hono/zod-openapi'
 import {
   getUserInfoParamsSchema,
-  ParamsSchema,
-  ParamsWithPageSchema, userCondenseProfileSchema, userFanSchema, userFollowSchema, userHiddenLikeForumSchema,
+  userCondenseProfileSchema, userFanSchema, userFollowSchema, userHiddenLikeForumSchema,
   UserInfoSchema, userLikeForumSchema,
   UserPostSchema
-} from "./user/schema.js";
-import {commonErrorHook} from "../utils/error.js";
+} from "./schema.js";
+import {commonErrorHook} from "../../utils/error.js";
+import {errorMessageSchema, methodSpecSchema, methodWithPageSchema} from "../commonSchema.js";
 
 
 
-const user = new OpenAPIHono({defaultHook: commonErrorHook}).basePath('/user');
+
+const UserRoute = new OpenAPIHono({defaultHook: commonErrorHook});
+
 
 const getUserInfoRoute = createRoute({
   method: 'get',
   path: '/info/{username}',
+  tags: ['用户(User)'],
   request: {
     params: getUserInfoParamsSchema,
   },
@@ -41,7 +44,7 @@ const getUserInfoRoute = createRoute({
   },
 })
 
-user.openapi(getUserInfoRoute, async (c) => {
+UserRoute.openapi(getUserInfoRoute, async (c) => {
   const { username } = c.req.valid('param')
   const res = await getUserInfo(username);
   return c.json(res)
@@ -50,8 +53,9 @@ user.openapi(getUserInfoRoute, async (c) => {
 const getUserPostRoute = createRoute({
   method: 'get',
   path: '/posts',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsWithPageSchema,
+    query: methodWithPageSchema,
   },
   responses: {
     200: {
@@ -62,21 +66,37 @@ const getUserPostRoute = createRoute({
       },
       description: '获取用户的发言记录',
     },
+    404: {
+      content: {
+        'application/json': {
+          schema: errorMessageSchema,
+        },
+      },
+      description: '用户隐藏发言时，返回404错误。',
+    },
   },
 })
 
-user.openapi(getUserPostRoute, async (c) => {
+UserRoute.openapi(getUserPostRoute, async (c) => {
   const { method, id, page } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
-  const res = await getUserPost(user_id, Number(page)) as UpdateProperty<UserPost, 'createTime', string>[];
-  return c.json(res)
+  try {
+    const res = await getUserPost(user_id, Number(page)) as UpdateProperty<UserPost, 'createTime', string>[];
+    return c.json(res)
+  } catch (e: any) {
+    return c.json({
+      error: e.message,
+      stack: e.stack
+    },404)
+  }
 })
 
 const getProfileRoute = createRoute({
   method: 'get',
   path: '/profile',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsSchema,
+    query: methodSpecSchema,
   },
   responses: {
     200: {
@@ -85,7 +105,7 @@ const getProfileRoute = createRoute({
   },
 })
 
-user.openapi(getProfileRoute, async (c) => {
+UserRoute.openapi(getProfileRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
   const res = await getProfile(user_id);
@@ -95,8 +115,9 @@ user.openapi(getProfileRoute, async (c) => {
 const getPanelRoute = createRoute({
   method: 'get',
   path: '/panel',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsSchema,
+    query: methodSpecSchema,
   },
   responses: {
     200: {
@@ -105,7 +126,7 @@ const getPanelRoute = createRoute({
   },
 })
 
-user.openapi(getPanelRoute, async (c) => {
+UserRoute.openapi(getPanelRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const un= await getParams(method, id, methodEnum.un) as string;
   const res = await getPanel(un);
@@ -115,8 +136,9 @@ user.openapi(getPanelRoute, async (c) => {
 const getLikeForumRoute = createRoute({
   method: 'get',
   path: '/likeForum',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsSchema,
+    query: methodSpecSchema,
   },
   responses: {
     200: {
@@ -138,7 +160,7 @@ const getLikeForumRoute = createRoute({
   },
 })
 
-user.openapi(getLikeForumRoute, async (c) => {
+UserRoute.openapi(getLikeForumRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id = await getParams(method, id, methodEnum.id) as number;
 
@@ -153,8 +175,9 @@ user.openapi(getLikeForumRoute, async (c) => {
 const getCondenseProfileRoute = createRoute({
   method: 'get',
   path: '/condenseProfile',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsSchema,
+    query: methodSpecSchema,
   },
   responses: {
     200: {
@@ -168,7 +191,8 @@ const getCondenseProfileRoute = createRoute({
   },
 })
 
-user.openapi(getCondenseProfileRoute, async (c) => {
+// @ts-ignore
+UserRoute.openapi(getCondenseProfileRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id= await getParams(method,id, methodEnum.id) as number;
   const res = await condenseProfile(user_id)
@@ -178,8 +202,9 @@ user.openapi(getCondenseProfileRoute, async (c) => {
 const getFollowRoute = createRoute({
   method: 'get',
   path: '/follow',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsSchema,
+    query: methodSpecSchema,
   },
   responses: {
     200: {
@@ -193,7 +218,8 @@ const getFollowRoute = createRoute({
   },
 })
 
-user.openapi(getFollowRoute, async (c) => {
+// @ts-ignore
+UserRoute.openapi(getFollowRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
   const res = await getFollow(user_id, "needAll")
@@ -203,8 +229,9 @@ user.openapi(getFollowRoute, async (c) => {
 const getFanRoute = createRoute({
   method: 'get',
   path: '/fan',
+  tags: ['用户(User)'],
   request: {
-    query: ParamsSchema,
+    query: methodSpecSchema,
   },
   responses: {
     200: {
@@ -218,7 +245,8 @@ const getFanRoute = createRoute({
   },
 })
 
-user.openapi(getFanRoute, async (c) => {
+// @ts-ignore
+UserRoute.openapi(getFanRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
   const res = await getFan(user_id)
@@ -226,4 +254,4 @@ user.openapi(getFanRoute, async (c) => {
 })
 
 
-export default user;
+export default UserRoute;
