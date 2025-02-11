@@ -10,16 +10,11 @@ import ForumRoute from "./routes/forum/index.js";
 
 const app = new OpenAPIHono({defaultHook: commonErrorHook})
 
-
-
-
 app.all(
   '*',
   cors({
-    origin: ['http://localhost:3000','https://tieba.baidu.com'],
-    // allowHeaders: ['X-Custom-Header', 'Upgrade-Insecure-Requests'],
+    origin: ['http://localhost:3000','https://tieba.baidu.com', 'https://tb.wang1m.tech'],
     allowMethods: ['POST', 'GET', 'OPTIONS'],
-    // exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
     maxAge: 600,
     credentials: true,
   })
@@ -39,15 +34,15 @@ app.route('/post', PostRoute)
 app.route('/forum', ForumRoute)
 
 
-// app.onError((err, c) => {
-//   console.error(`${err}`)
-//   if(err.name === 'NotFoundError') return c.json({error: err.message}, 500)
-//   return c.json({error: '获取数据时发生内部错误'}, 500)
-// })
+app.onError((err, c) => {
+  console.error(`${err}`)
+  if(err.name === 'NotFoundError') return c.json({error: err.message}, 500)
+  return c.json({error: '获取数据时发生内部错误'}, 500)
+})
 
 const terms = '注意事项：使用此库时请仅用于学习和测试，禁止用于非法用途及其他恶劣的社区行为如：恶意刷屏、辱骂黄暴、各种形式的滥用等，违规此模块许可证 `GNU General Public License Version 3` 及此条注意事项而**产生的任何后果自负，模块的所有贡献者不负任何责任**。'
 
-app.doc('/doc', {
+app.doc('/doc', (c) => ({
   openapi: '3.0.0',
   info: {
     version: '1.0.0',
@@ -66,12 +61,16 @@ app.doc('/doc', {
   },
   servers: [
     {
-      url: 'http://localhost:3001',
-      description: '`Localhost` - **本地运行**时可选接口。',
+      url: new URL(c.req.url).origin,
+      description: '使用当前默认环境。',
     },
     {
-      url: 'https://tieba.baidu.com',
-      description: 'Tieba',
+      url: 'https://tb.wang1m.tech',
+      description: '云函数部署的可用接口。',
+    },
+    {
+      url: 'http://localhost:8000',
+      description: '`Localhost` - **本地运行**时可选接口。',
     },
   ],
   tags: [
@@ -88,9 +87,9 @@ app.doc('/doc', {
       description: '吧相关的接口：包括 \n- 获取某吧的帖子推荐列表\n- 获取吧的关注成员列表',
     },
   ]
-})
+}))
 
-const port = 3001
+const port = 8000
 console.log(`Server is running on http://localhost:${port}`)
 
 serve({

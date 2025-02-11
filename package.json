@@ -6,7 +6,8 @@
     "studio": "npx drizzle-kit studio",
     "drizzle-push": "npx drizzle-kit push",
     "drizzle-pull": "npx drizzle-kit pull",
-    "test": "tsx src/test/1.ts"
+    "test": "tsx src/test/1.ts",
+    "build": "esbuild ./src/index.ts --bundle --outfile=out.cjs --platform=node --target=node18.15 --charset=utf8"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.4",
@@ -14,6 +15,7 @@
     "@scalar/hono-api-reference": "^0.5.172",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.0",
+    "esbuild": "^0.25.0",
     "hono": "^4.6.8",
     "pg": "^8.13.1",
     "tieba.js": "^1.1.0"
