@@ -77,6 +77,7 @@ const getUserPostRoute = createRoute({
   },
 })
 
+// @ts-ignore
 UserRoute.openapi(getUserPostRoute, async (c) => {
   const { method, id, page } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;

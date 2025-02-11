@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import {postTable, subPostTable, userPostTable} from "../db/schema/tieba.js";
 import {getPost, getUserPost} from "tieba.js";
 import {collatePost} from "tieba.js";
+import {integer, varchar} from "drizzle-orm/pg-core";
 
 const db = drizzle(process.env.DATABASE_URL!);
 
@@ -20,13 +21,15 @@ async function main() {
   let posts = await getPost(9251792258,'ALL',false,true);
   collatePost(posts.postList).map(async (post) => {
     await db.insert(postTable).values({
-      id: post.id,
+      forumId: '1',
+      postId: varchar({ length: 12 }).notNull(),
       floor: post.floor,
       time: new Date((post.time as number) * 1000),
       content: post.content,
       subPostNumber: post.subPostNumber,
       authorId: post.authorId,
-      agree: post.agree,
+      agreeNum: post.agree.agreeNum,
+      disagreeNum: post.agree.disagreeNum,
       ipAddress: posts.userList.find((item)=>(item.id === post.authorId))?.ipAddress,
     }).onConflictDoNothing();
     if (post.subPostNumber>0&&post.subPostList) {
@@ -42,30 +45,6 @@ async function main() {
         }).onConflictDoNothing();
       })
   }})
-
-  console.log('New user created!')
-  //
-  // const users = await db.select().from(userPostTable);
-  // console.log('Getting all users from the database: ', users)
-  /*
-  const users: {
-    id: number;
-    name: string;
-    age: number;
-    email: string;
-  }[]
-  */
-
-  // await db
-  //   .update(userPostTable)
-  //   .set({
-  //     age: 31,
-  //   })
-  //   .where(eq(userPostTable.email, user.email));
-  // console.log('User info updated!')
-
-  // await db.delete(userPostTable).where(eq(userPostTable.email, user.email));
-  console.log('User deleted!')
 }
 
 main();
