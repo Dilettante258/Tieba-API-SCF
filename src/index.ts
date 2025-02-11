@@ -40,8 +40,9 @@ app.onError((err, c) => {
   return c.json({error: '获取数据时发生内部错误'}, 500)
 })
 
-const terms = '注意事项：使用此库时请仅用于学习和测试，禁止用于非法用途及其他恶劣的社区行为如：恶意刷屏、辱骂黄暴、各种形式的滥用等，违规此模块许可证 `GNU General Public License Version 3` 及此条注意事项而**产生的任何后果自负，模块的所有贡献者不负任何责任**。'
-
+const terms = "请勿以本项目进行违反百度贴吧用户协议的行为，或向任何第三方提供任何形式的相关服务。\n" +
+  "使用此库时请仅用于学习和测试，禁止用于非法用途及其他恶劣的社区行为如：恶意刷屏、辱骂黄暴、各种形式的滥用等。\n" +
+  "由此违规而产生的任何后果自负，模块的所有贡献者不负任何责任。"
 app.doc('/doc', (c) => ({
   openapi: '3.0.0',
   info: {
@@ -60,10 +61,10 @@ app.doc('/doc', (c) => ({
     }
   },
   servers: [
-    {
-      url: new URL(c.req.url).origin,
-      description: '使用当前默认环境。',
-    },
+    // {
+    //   url: new URL(c.req.url).origin,
+    //   description: '使用当前默认环境。',
+    // },
     {
       url: 'https://tb.wang1m.tech',
       description: '云函数部署的可用接口。',
