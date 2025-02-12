@@ -12,14 +12,14 @@ export const fnameSchema = z.object({
       example: 'v',
     }),
   page: z
-    .number().max(500).min(1).int()
+    .string()
     .openapi({
       param: {
         name: 'page',
         in: 'query'
       },
-      default: 1,
-      example: 1,
+      default: '1',
+      example: '1',
       description: '页码，应该是小于500的正整数。'
     })
 })
@@ -45,23 +45,31 @@ export const threadFetchSchema = z.object({
       example: '1',
       description: '页码。'
     }),
-  sort: z.number().min(0).max(5).int().openapi({
+  sort: z.enum(['0', '1', '2', '3', '4', '5']).openapi({
     param: {
       name: 'sort',
       in: 'query'
     },
-    default: 1,
-    example: 1,
+    default: '0',
+    example: '0',
     description: '如何排序：\n- 对于有热门分区的贴吧 0热门排序(HOT) 1按发布时间(CREATE) 2关注的人(FOLLOW) 3/4热门排序(HOT) >=5是按回复时间(REPLY)\n' +
       '- 对于无热门分区的贴吧 0按回复时间(REPLY) 1按发布时间(CREATE) 2关注的人(FOLLOW) >=3按回复时间(REPLY)\n'
   }),
-  onlyGood: z.boolean().openapi({
+  onlyGood: z.enum(['true', 'false']).optional().openapi({
     param: {
       name: 'onlyGood',
       in: 'query'
     },
-    default: false,
+    default: 'false',
     description: '是否只查看精品贴。'
+  }),
+  rn: z.string().optional().openapi({
+    param: {
+      name: 'rn',
+      in: 'query'
+    },
+    default: '15',
+    description: '每页主题帖数量。第一页只能为15。'
   }),
 })
 

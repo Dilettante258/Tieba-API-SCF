@@ -6,7 +6,7 @@ export const errorMessageSchema = z.object({
 })
 
 export const methodWithPageSchema = z.object({
-  method: z.enum(['uid', 'id', 'un'], ).openapi({
+  method: z.enum(['uid', 'id', 'un']).openapi({
     param: {
       name: 'method',
       in: 'query'
@@ -25,13 +25,13 @@ export const methodWithPageSchema = z.object({
       example: '悲伤逆流成蓮',
     }),
   page: z
-    .number().min(1).int().optional()
+    .string().optional()
     .openapi({
       param: {
         name: 'page',
         in: 'query'
       },
-      default: 1,
+      default: '1',
       description: "页码数"
     }),
 })
@@ -61,6 +61,9 @@ export const privSets = z.object({
     example: 3
   }),
   bazhu_show_outside: z.number().openapi({
+    example: 3
+  }),
+  friend: z.number().openapi({
     example: 3
   }),
   group: z.number().openapi({

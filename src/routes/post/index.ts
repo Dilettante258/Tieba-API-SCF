@@ -51,7 +51,7 @@ const getPostRoute = createRoute({
 // @ts-ignore
 PostRoute.openapi(getPostRoute, async (c) => {
   const { tid, page } = c.req.valid('query')
-  const data = await getPost(Number(tid), page === "ALL" ? page : Number(page), false, true);
+  const data = await getPost(Number(tid), page === "ALL" ? "ALL" : Number(page), false, true);
   const postData = collatePost(data.postList)
   return c.json({
     ...data,

@@ -220,17 +220,48 @@ export const userCondenseProfileSchema = z.object({
 
 
 const followItemSchema = z.object({
-  id: z.number().openapi({
-    example: 5260121165
+  ala_info: z.object({
+    anchor_live: z.number().optional(),
+    location: z.string(),
+    lng: z.number(),
+    lat: z.number(),
+  }).optional(),
+  bazhu_grade: z.object({
+    desc: z.string().openapi({
+      example: "双一流高校吧吧主"
+    }),
+    level: z.string().openapi({
+      example: "双一流高校吧吧主"
+    }),
+  }).partial(),
+  business_account_info: z.object({
+    is_business_account: z.number().openapi({
+      example: 0
+    }),
+    is_forum_business_account: z.number().openapi({
+      example: 0
+    })
   }),
-  name: z.string().openapi({
-    example: "川上富江813"
+  display_auth_type: z.number().openapi({
+    example: 0
   }),
-  portraith: z.string().openapi({
-    example: "tb.1.636d3cf0.lcPD_3giaXxxieMU_QhJnA?t=1738872521"
+  follow_from: z.string().openapi({
+    example: "来自贴吧关注"
   }),
   has_concerned: z.number().openapi({
     example: 1
+  }),
+  id: z.number().openapi({
+    example: 5260121165
+  }),
+  intro: z.string().openapi({
+    example: "别靠近我会变得不幸"
+  }),
+  name: z.string().openapi({
+    example: "川上富江813"
+  }).optional(),
+  name_show: z.string().openapi({
+    example: "川上富江🌸🌟"
   }),
   new_god_data: z.object({
     status: z.number().openapi({
@@ -248,43 +279,18 @@ const followItemSchema = z.object({
     type_name: z.string().openapi({
       example: "通用"
     })
-  }).or(z.object({})),
-  bazhu_grade: z.object({
-    desc: z.string().openapi({
-      example: "双一流高校吧吧主"
-    }),
-    level: z.string().openapi({
-      example: "双一流高校吧吧主"
-    }),
-  }).or(z.object({})),
-  display_auth_type: z.number().openapi({
-    example: 0
+  }).optional(),
+  portrait: z.string().openapi({
+    example: "tb.1.636d3cf0.lcPD_3giaXxxieMU_QhJnA?t=1738872521"
   }),
+  portraith: z.string().openapi({
+    example: "tb.1.636d3cf0.lcPD_3giaXxxieMU_QhJnA?t=1738872521"
+  }),
+  priv_sets: privSets,
   work_creator_info: z.object({
     auth_desc: z.string().openapi({
       example: ""
     })
-  }),
-  name_show: z.string().openapi({
-    example: "川上富江🌸🌟"
-  }),
-  intro: z.string().openapi({
-    example: "别靠近我会变得不幸"
-  }),
-  business_account_info: z.object({
-    is_business_account: z.number().openapi({
-      example: 0
-    }),
-    is_forum_business_account: z.number().openapi({
-      example: 0
-    })
-  }),
-  portrait: z.string().openapi({
-    example: "tb.1.636d3cf0.lcPD_3giaXxxieMU_QhJnA?t=1738872521"
-  }),
-  priv_sets: privSets,
-  follow_from: z.string().openapi({
-    example: "来自贴吧关注"
   }),
 }).openapi("followItemSchema");
 

@@ -77,13 +77,13 @@ const getUserPostRoute = createRoute({
   },
 })
 
-// @ts-ignore
+
 UserRoute.openapi(getUserPostRoute, async (c) => {
   const { method, id, page } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
   try {
     const res = await getUserPost(user_id, Number(page)) as UpdateProperty<UserPost, 'createTime', string>[];
-    return c.json(res)
+    return c.json(res, 200)
   } catch (e: any) {
     return c.json({
       error: e.message,
@@ -219,7 +219,7 @@ const getFollowRoute = createRoute({
   },
 })
 
-// @ts-ignore
+
 UserRoute.openapi(getFollowRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
@@ -245,6 +245,7 @@ const getFanRoute = createRoute({
     },
   },
 })
+
 
 // @ts-ignore
 UserRoute.openapi(getFanRoute, async (c) => {

@@ -18,8 +18,9 @@
     "esbuild": "^0.25.0",
     "hono": "^4.6.8",
     "log4js": "^6.9.1",
+    "node-xlsx": "^0.24.0",
     "pg": "^8.13.1",
-    "tieba.js": "^1.1.0"
+    "tieba.js": "^1.1.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",

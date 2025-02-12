@@ -61,10 +61,10 @@ app.doc('/doc', (c) => ({
     }
   },
   servers: [
-    // {
-    //   url: new URL(c.req.url).origin,
-    //   description: '使用当前默认环境。',
-    // },
+    {
+      url: new URL(c.req.url).origin.includes('localhost') ? 'http://localhost:8000' : 'https://tb.wang1m.tech',
+      description: '使用当前默认环境。',
+    },
     {
       url: 'https://tb.wang1m.tech',
       description: '云函数部署的可用接口。',

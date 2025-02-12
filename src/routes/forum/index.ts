@@ -58,16 +58,17 @@ const getThreadRoute = createRoute({
   },
 })
 
+
 // @ts-ignore
 ForumRoute.openapi(getThreadRoute, async (c) => {
-  const { fname, page, sort, onlyGood } = c.req.valid('query')
+  const { fname, page, sort, onlyGood, rn } = c.req.valid('query')
   const data = await getThread({
     fname,
     page: Number(page),
-    rn: 30,
+    rn: Number(rn)|| 15,
     // @ts-ignore
-    sort: sort||1,
-    OnlyGood: onlyGood,
+    sort: Number(sort)||1,
+    OnlyGood: onlyGood==='true',
   });
   return c.json(data)
 })
