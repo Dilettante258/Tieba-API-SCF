@@ -24,7 +24,6 @@ import {errorMessageSchema, methodSpecSchema, methodWithPageSchema} from "../com
 
 const UserRoute = new OpenAPIHono({defaultHook: commonErrorHook});
 
-
 const getUserInfoRoute = createRoute({
   method: 'get',
   path: '/info/{username}',
@@ -82,7 +81,7 @@ UserRoute.openapi(getUserPostRoute, async (c) => {
   const { method, id, page } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
   try {
-    const res = await getUserPost(user_id, Number(page)) as UpdateProperty<UserPost, 'createTime', string>[];
+    const res = await getUserPost(user_id, Number(page), true) as UpdateProperty<UserPost, 'createTime', string>[];
     return c.json(res, 200)
   } catch (e: any) {
     return c.json({
