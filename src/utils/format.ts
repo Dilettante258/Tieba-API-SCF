@@ -34,11 +34,11 @@ class NotFoundError extends Error {
   }
 }
 
+// 该函数的大部分分支均未进行测试！
 export async function getParams(method: keyof typeof methodEnum, id: string, need: methodEnum): Promise<number|string> {
   let result = 0;
   const un2id = async (un: string) => getUserInfo(un).then((res) => res.id);
   const id2uid = async (id: string) => getProfile(Number(id)).then((res) => Number(res.user.tiebaUid));
-
   switch (need) {
     case methodEnum.uid:
       if(method===methodEnum.uid){
@@ -58,7 +58,8 @@ export async function getParams(method: keyof typeof methodEnum, id: string, nee
         result = await un2id(id);
       } else if(method===methodEnum.uid) {
         const userdata = await getUserByUid(Number(id))
-        result = Number(userdata.id)
+        if(!userdata) throw new NotFoundError("未找到用户");
+        result = Number(userdata?.id)
       }
       if(result === 0) throw new NotFoundError("未找到用户");
       return result;
@@ -67,7 +68,7 @@ export async function getParams(method: keyof typeof methodEnum, id: string, nee
         return id;
       } else if(method===methodEnum.uid) {
         const userdata = await getUserByUid(Number(id))
-        return userdata.name;
+        return userdata?.name;
       } else if(method===methodEnum.id) {
         return await getUnameFromId(Number(id));
       }

@@ -8,6 +8,7 @@ import PostRoute from "./routes/post/index.js";
 import ForumRoute from "./routes/forum/index.js";
 
 
+
 const app = new OpenAPIHono({defaultHook: commonErrorHook})
 
 app.all(
@@ -35,8 +36,8 @@ app.route('/forum', ForumRoute)
 
 
 app.onError((err, c) => {
-  console.error(`${err}`)
   if(err.name === 'NotFoundError') return c.json({error: err.message}, 500)
+  console.error(`${err}`)
   return c.json({error: '获取数据时发生内部错误'}, 500)
 })
 

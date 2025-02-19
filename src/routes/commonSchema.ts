@@ -32,7 +32,8 @@ export const methodWithPageSchema = z.object({
         in: 'query'
       },
       default: '1',
-      description: "页码数"
+      example: '1',
+      description: "页码数,`needAll`为获取所有页码（部分可用，`getUserPost`不可用）。"
     }),
 })
 
