@@ -163,7 +163,6 @@ const getLikeForumRoute = createRoute({
 UserRoute.openapi(getLikeForumRoute, async (c) => {
   const { method, id } = c.req.valid('query')
   const user_id = await getParams(method, id, methodEnum.id) as number;
-
   const res = await getLikeForum(user_id, "needAll");
   if (res.length === 0) {
     const data = await getHiddenLikeForum(user_id)
@@ -204,7 +203,7 @@ const getFollowRoute = createRoute({
   path: '/follow',
   tags: ['用户(User)'],
   request: {
-    query: methodSpecSchema,
+    query: methodWithPageSchema,
   },
   responses: {
     200: {
@@ -220,9 +219,9 @@ const getFollowRoute = createRoute({
 
 
 UserRoute.openapi(getFollowRoute, async (c) => {
-  const { method, id } = c.req.valid('query')
+  const { method, id, page } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
-  const res = await getFollow(user_id, "needAll")
+  const res = await getFollow(user_id, page === "needAll" ? "needAll" : Number(page))
   return c.json(res)
 })
 
@@ -231,7 +230,7 @@ const getFanRoute = createRoute({
   path: '/fan',
   tags: ['用户(User)'],
   request: {
-    query: methodSpecSchema,
+    query: methodWithPageSchema,
   },
   responses: {
     200: {
@@ -248,9 +247,9 @@ const getFanRoute = createRoute({
 
 // @ts-ignore
 UserRoute.openapi(getFanRoute, async (c) => {
-  const { method, id } = c.req.valid('query')
+  const { method, id, page } = c.req.valid('query')
   const user_id= await getParams(method, id, methodEnum.id) as number;
-  const res = await getFan(user_id)
+  const res = await getFan(user_id, page === "needAll" ? "needAll" : Number(page))
   return c.json(res)
 })
 
