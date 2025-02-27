@@ -38,7 +38,7 @@ const getUserInfoRoute = createRoute({
           schema: UserInfoSchema,
         },
       },
-      description: 'Retrieve the user',
+      description: '获取用户信息',
     },
   },
 })

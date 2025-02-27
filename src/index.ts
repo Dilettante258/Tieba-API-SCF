@@ -6,6 +6,7 @@ import {commonErrorHook} from "./utils/error.js";
 import {apiReference} from '@scalar/hono-api-reference';
 import PostRoute from "./routes/post/index.js";
 import ForumRoute from "./routes/forum/index.js";
+import AppRoute from "./routes/app/index.js";
 
 
 const app = new OpenAPIHono({defaultHook: commonErrorHook})
@@ -32,13 +33,14 @@ app.get(
 app.route('/user', UserRoute)
 app.route('/post', PostRoute)
 app.route('/forum', ForumRoute)
+app.route('/app', AppRoute)
 
 
-app.onError((err, c) => {
-  console.error(`${err}`)
-  if(err.name === 'NotFoundError') return c.json({error: err.message}, 500)
-  return c.json({error: '获取数据时发生内部错误'}, 500)
-})
+// app.onError((err, c) => {
+//   console.error(`${err}`)
+//   if(err.name === 'NotFoundError') return c.json({error: err.message}, 500)
+//   return c.json({error: '获取数据时发生内部错误'}, 500)
+// })
 
 const terms = "请勿以本项目进行违反百度贴吧用户协议的行为，或向任何第三方提供任何形式的相关服务。\n" +
   "使用此库时请仅用于学习和测试，禁止用于非法用途及其他恶劣的社区行为如：恶意刷屏、辱骂黄暴、各种形式的滥用等。\n" +
