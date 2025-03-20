@@ -70,6 +70,9 @@ const oauthRoute = createRoute({
 AppRoute.openapi(oauthRoute, async (c) => {
   const {code: requestToken} = c.req.valid('query');
   console.log(requestToken)
+  if(process.env.clientID === undefined || process.env.clientSecret === undefined){
+    return c.json({error: '没有配置clientID或clientSecret的环境变量！'})
+  }
   const params = {
     client_id: process.env.clientID as string,
     client_secret: process.env.clientSecret as string,

@@ -2,11 +2,13 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import {postTable, subPostTable, userPostTable} from "../db/schema/tieba.js";
-import {getPost, getUserPost} from "tieba.js";
+import {Config, getPost, getUserPost} from "tieba.js";
 import {collatePost} from "tieba.js";
 import {integer, varchar} from "drizzle-orm/pg-core";
 
 const db = drizzle(process.env.DATABASE_URL!);
+
+
 
 async function main() {
   let userPosts = await getUserPost(5991323492, 1,10);

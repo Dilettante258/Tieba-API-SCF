@@ -6,15 +6,22 @@ import {commonErrorHook} from "./utils/error.js";
 import {apiReference} from '@scalar/hono-api-reference';
 import PostRoute from "./routes/post/index.js";
 import ForumRoute from "./routes/forum/index.js";
-import AppRoute from "./routes/app/index.js";
+// import AppRoute from "./routes/app/index.js";
+import {Config} from "tieba.js";
 
+
+Config.init({
+  bduss: process.env.BDUSS,
+  needPlainText: true,
+  needTimestamp: false
+});
 
 const app = new OpenAPIHono({defaultHook: commonErrorHook})
 
 app.all(
   '*',
   cors({
-    origin: ['http://localhost:3000','https://tieba.baidu.com', 'https://tb.wang1m.tech'],
+    origin: ['http://localhost:3000', 'http://localhost:5173','https://tb.wang1m.tech', 'https://*.march7.tech'],
     allowMethods: ['POST', 'GET', 'OPTIONS'],
     maxAge: 600,
     credentials: true,

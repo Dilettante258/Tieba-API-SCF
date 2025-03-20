@@ -6,7 +6,7 @@
     "studio": "npx drizzle-kit studio",
     "drizzle-push": "npx drizzle-kit push",
     "drizzle-pull": "npx drizzle-kit pull",
-    "test": "tsx src/test/forumPostSave.ts",
+    "test": "tsx src/test/1.ts",
     "build": "esbuild ./src/index.ts --bundle --outfile=out.cjs --platform=node --target=node18.15 --charset=utf8"
   },
   "dependencies": {
@@ -19,8 +19,9 @@
     "hono": "^4.6.8",
     "log4js": "^6.9.1",
     "node-xlsx": "^0.24.0",
+    "p-limit": "^6.2.0",
     "pg": "^8.13.1",
-    "tieba.js": "^1.1.4"
+    "tieba.js": "^1.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.17",
