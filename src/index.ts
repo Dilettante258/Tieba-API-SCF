@@ -21,8 +21,8 @@ const app = new OpenAPIHono({defaultHook: commonErrorHook})
 app.all(
   '*',
   cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173','https://tb.wang1m.tech', 'https://*.march7.tech'],
-    allowMethods: ['POST', 'GET', 'OPTIONS'],
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://tb.wang1m.tech', 'https://www.eztb.org', 'https://tb.march7.tech'],
+    allowMethods: ['GET', 'POST', 'OPTIONS'],
     maxAge: 600,
     credentials: true,
   })
@@ -37,13 +37,16 @@ app.get(
     },
   }),
 )
+
+app.get('/', (c) => c.redirect('/reference'))
+
 app.route('/user', UserRoute)
 app.route('/post', PostRoute)
 app.route('/forum', ForumRoute)
 
 
 app.onError((err, c) => {
-  if(err.name === 'NotFoundError') return c.json({error: err.message}, 500)
+  if (err.name === 'NotFoundError') return c.json({error: err.message}, 500)
   console.error(`${err}`)
   return c.json({error: '获取数据时发生内部错误'}, 500)
 })

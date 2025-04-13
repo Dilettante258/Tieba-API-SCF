@@ -18,7 +18,7 @@ log4js.configure({
 });
 
 Config.init({
-  bduss: "",
+  bduss: process.env.BDUSS,
   needTimestamp: true
 });
 

@@ -12,7 +12,7 @@
 node_modules/
 
 # env
-.env
+.env.local
 .env.production
 
 # logs
@@ -27,4 +27,6 @@ lerna-debug.log*
 # misc
 .DS_Store
 
-.out.cjs
+out.cjs
+
+./test/[1-9].ts

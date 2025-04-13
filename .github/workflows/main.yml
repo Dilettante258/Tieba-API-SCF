@@ -16,17 +16,14 @@ jobs:
       - name: Setup Node.js environment
         uses: actions/setup-node@v4.2.0
         with:
-          node-version: 18.15
+          node-version: 22
       - name: Install dependencies
         run: npm ci
-      - name: Remove unnecessary files
+      - name: Build project
         run: |
-          rm -r .github .git .gitattributes .gitignore LICENSE README.md package-lock.json tsconfig.json
+          npm run build
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: package
-          path: ./
-      - name: Package files
-        run: |
-          zip -r package.zip .
+          name: script.js
+          path: ./out.cjs

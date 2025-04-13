@@ -5,16 +5,18 @@ export const errorMessageSchema = z.object({
   stack: z.string()
 })
 
+const method = z.enum(['uid', 'id', 'un']).openapi({
+  param: {
+    name: 'method',
+    in: 'query'
+  },
+  description: '定位用户的方法。uid指代`user_id`，id指代手机贴吧个人主页ID，un指代`username`用户名。',
+  default: 'un',
+  example: 'un',
+})
+
 export const methodWithPageSchema = z.object({
-  method: z.enum(['uid', 'id', 'un']).openapi({
-    param: {
-      name: 'method',
-      in: 'query'
-    },
-    description: '定位用户的方法。uid指代`user_id`，id指代手机贴吧个人主页ID，un指代`username`用户名。',
-    default: 'un',
-    example: 'un',
-  }),
+  method: method,
   id: z
     .string()
     .openapi({
@@ -34,6 +36,42 @@ export const methodWithPageSchema = z.object({
       default: '1',
       example: '1',
       description: "页码数,`needAll`为获取所有页码（部分可用，`getUserPost`不可用）。"
+    }),
+})
+
+
+export const methodWithFormToPageSchema = z.object({
+  method: method,
+  id: z
+    .string()
+    .openapi({
+      param: {
+        name: 'id',
+        in: 'query'
+      },
+      example: '悲伤逆流成蓮',
+    }),
+  fromP: z
+    .string()
+    .openapi({
+      param: {
+        name: 'fromP',
+        in: 'query'
+      },
+      default: '1',
+      example: '1',
+      description: "起始页。"
+    }),
+  toP: z
+    .string()
+    .openapi({
+      param: {
+        name: 'toP',
+        in: 'query'
+      },
+      default: '3',
+      example: '3',
+      description: "结束页。"
     }),
 })
 

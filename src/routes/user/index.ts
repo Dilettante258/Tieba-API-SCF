@@ -17,7 +17,12 @@ import {
   UserPostSchema
 } from "./schema.js";
 import {commonErrorHook} from "../../utils/error.js";
-import {errorMessageSchema, methodSpecSchema, methodWithPageSchema} from "../commonSchema.js";
+import {
+  errorMessageSchema,
+  methodSpecSchema,
+  methodWithFormToPageSchema,
+  methodWithPageSchema
+} from "../commonSchema.js";
 
 
 
@@ -65,13 +70,13 @@ const getUserPostRoute = createRoute({
       },
       description: '获取用户的发言记录',
     },
-    404: {
+    204: {
       content: {
         'application/json': {
           schema: errorMessageSchema,
         },
       },
-      description: '用户隐藏发言时，返回404错误。',
+      description: '用户隐藏发言时，返回204错误。',
     },
   },
 })
@@ -87,7 +92,50 @@ UserRoute.openapi(getUserPostRoute, async (c) => {
     return c.json({
       error: e.message,
       stack: e.stack
-    },404)
+    },204)
+  }
+})
+
+const getBatchUserPostRoute = createRoute({
+  method: 'get',
+  path: '/postsBatch',
+  tags: ['用户(User)'],
+  description: '批量获取用户的发言记录',
+  request: {
+    query: methodWithFormToPageSchema,
+  },
+  responses: {
+    200: {
+      content: {
+        'application/json': {
+          schema: UserPostSchema,
+        },
+      },
+      description: '发言记录',
+    },
+    204: {
+      content: {
+        'application/json': {
+          schema: errorMessageSchema,
+        },
+      },
+      description: '用户隐藏发言时，返回204错误。',
+    },
+  },
+})
+
+
+UserRoute.openapi(getBatchUserPostRoute, async (c) => {
+  const { method, id, fromP, toP  } = c.req.valid('query')
+  const user_id= await getParams(method, id, methodEnum.id) as number;
+  try {
+    const res = await getUserPost(user_id, [Number(fromP), Number(toP)], true) as UpdateProperty<UserPost, 'createTime', string>[];
+    return c.json(res, 200)
+  } catch (e: any) {
+    return c.json({
+      error: e.message,
+      stack: e.stack
+    },204)
   }
 })
 
