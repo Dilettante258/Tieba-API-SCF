@@ -1,8 +1,8 @@
 import { zValidator } from "@hono/zod-validator";
+import { getPosts } from "@tieba/sdk";
 import { Effect } from "effect";
 import { Hono } from "hono";
 import { z } from "zod";
-import { getClient } from "../lib/sdk.ts";
 
 const tidQuery = z.object({
 	tid: z.string(),
@@ -12,9 +12,8 @@ const tidQuery = z.object({
 export const postRoute = new Hono()
 	.get("/raw", zValidator("query", tidQuery), async (c) => {
 		const { tid, page } = c.req.valid("query");
-		const client = getClient();
 		const data = await Effect.runPromise(
-			client.getPosts(Number(tid), page === "ALL" ? "ALL" : Number(page), {
+			getPosts(Number(tid), page === "ALL" ? "ALL" : Number(page), {
 				withComment: true,
 			}),
 		);
@@ -22,9 +21,8 @@ export const postRoute = new Hono()
 	})
 	.get("/pretty", zValidator("query", tidQuery), async (c) => {
 		const { tid, page } = c.req.valid("query");
-		const client = getClient();
 		const data = await Effect.runPromise(
-			client.getPosts(Number(tid), page === "ALL" ? "ALL" : Number(page), {
+			getPosts(Number(tid), page === "ALL" ? "ALL" : Number(page), {
 				withComment: true,
 			}),
 		);

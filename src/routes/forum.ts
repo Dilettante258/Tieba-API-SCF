@@ -1,8 +1,8 @@
 import { zValidator } from "@hono/zod-validator";
+import { getForumMembers, getThreads } from "@tieba/sdk";
 import { Effect } from "effect";
 import { Hono } from "hono";
 import { z } from "zod";
-import { getClient } from "../lib/sdk.ts";
 
 const fnameQuery = z.object({
 	fname: z.string(),
@@ -18,17 +18,15 @@ const threadQuery = fnameQuery.extend({
 export const forumRoute = new Hono()
 	.get("/member", zValidator("query", fnameQuery), async (c) => {
 		const { fname, page } = c.req.valid("query");
-		const client = getClient();
 		const data = await Effect.runPromise(
-			client.getForumMembers(fname, Number(page)),
+			getForumMembers(fname, Number(page)),
 		);
 		return c.json(data);
 	})
 	.get("/thread", zValidator("query", threadQuery), async (c) => {
 		const { fname, page, sort, onlyGood, rn } = c.req.valid("query");
-		const client = getClient();
 		const data = await Effect.runPromise(
-			client.getThreads({
+			getThreads({
 				fname,
 				page: Number(page),
 				rn: Number(rn) || 15,

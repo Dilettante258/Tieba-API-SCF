@@ -1,12 +1,29 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { cache } from 'hono/cache';
+
+import { forumAnalyzeRoute } from "./routes/forum-analyze.ts";
+import { forumSearchRoute } from "./routes/forum-search.ts";
 import { forumRoute } from "./routes/forum.ts";
 import { postRoute } from "./routes/post.ts";
 import { userRoute } from "./routes/user.ts";
 import { handleError } from "./utils/error.ts";
 
-import "dotenv/config";
+import dotenv from "dotenv";
+import { resolve } from "node:path";
+import { setupClient } from "./lib/sdk.ts";
+if (!process.env.production) {
+	dotenv.config({ path: resolve(import.meta.dirname, "../../../.env") });
+}
+setupClient();
+
+/** 根据路径返回 Cache-Control max-age（秒） */
+function getCacheMaxAge(path: string): number {
+	if (path.startsWith("/forum/thread")) return 60; // 帖子列表变化频繁
+	if (path.includes("/posts")) return 120; // 用户发帖记录
+	return 300; // 默认 5 分钟
+}
 
 const app = new Hono()
 	.use(
@@ -23,9 +40,25 @@ const app = new Hono()
 			credentials: true,
 		}),
 	)
+	.get("*", async (c, next) => {
+		await next();
+		const maxAge = getCacheMaxAge(c.req.path);
+		const cacheControl = `public, max-age=${maxAge}, stale-while-revalidate=${maxAge * 2}`;
+		cache({
+			cacheName: 'my-app',
+			cacheControl,
+			cacheableStatusCodes: [200, 404, 412],
+		});
+		c.header(
+			"Cache-Control",
+			cacheControl,
+		);
+	})
 	.route("/user", userRoute)
 	.route("/post", postRoute)
-	.route("/forum", forumRoute);
+	.route("/forum", forumRoute)
+	.route("/forum", forumAnalyzeRoute)
+	.route("/forum", forumSearchRoute);
 
 app.onError(handleError);
 

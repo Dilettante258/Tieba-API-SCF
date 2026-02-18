@@ -4,6 +4,10 @@
 		"outDir": "./dist",
 		"rootDir": "./src",
 		"jsx": "react-jsx",
+		"types": [
+			"hono",
+			"node"
+		],
 		"jsxImportSource": "hono/jsx"
 	},
 	"include": ["src/**/*"],
