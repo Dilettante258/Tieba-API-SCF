@@ -1,4 +1,4 @@
-import { getThreads } from "@tieba/sdk";
+import { getThreads } from "tieba.js";
 import { Effect } from "effect";
 
 export type ThreadsResult = Effect.Effect.Success<ReturnType<typeof getThreads>>;

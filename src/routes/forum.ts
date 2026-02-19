@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { getForumMembers, getThreads } from "@tieba/sdk";
+import { getForumMembers, getThreads } from "tieba.js";
 import { Effect } from "effect";
 import { Hono } from "hono";
 import { z } from "zod";

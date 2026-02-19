@@ -1,4 +1,4 @@
-import { TiebaError } from "@tieba/sdk";
+import { TiebaError } from "tieba.js";
 import type { ErrorHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 

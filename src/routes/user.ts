@@ -8,7 +8,7 @@ import {
 	getProfile,
 	getUserInfo,
 	getUserPost,
-} from "@tieba/sdk";
+} from "tieba.js";
 import { Effect } from "effect";
 import { Hono } from "hono";
 import { z } from "zod";

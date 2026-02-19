@@ -1,5 +1,5 @@
 import { zValidator } from "@hono/zod-validator";
-import { getPosts } from "@tieba/sdk";
+import { getPosts } from "tieba.js";
 import { Effect, Either, pipe } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";

@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json tsconfig.json ./
 
 # API 子仓库独立构建时，将 monorepo workspace 依赖改为可安装版本
-RUN bun -e "import { readFileSync, writeFileSync } from 'node:fs'; const pkg = JSON.parse(readFileSync('package.json', 'utf8')); if (pkg.dependencies?.['@tieba/sdk'] === 'workspace:*') pkg.dependencies['@tieba/sdk'] = '^3.0.0'; if (pkg.dependencies?.['@tieba/db'] === 'workspace:*') delete pkg.dependencies['@tieba/db']; writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+RUN bun -e "import { readFileSync, writeFileSync } from 'node:fs'; const pkg = JSON.parse(readFileSync('package.json', 'utf8')); if (pkg.dependencies?.['tieba.js'] === 'workspace:*') pkg.dependencies['tieba.js'] = '^3.0.0'; if (pkg.dependencies?.['@tieba/db'] === 'workspace:*') delete pkg.dependencies['@tieba/db']; writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
 
 RUN bun install
 

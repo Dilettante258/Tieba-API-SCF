@@ -17,7 +17,7 @@
 		"zod": "^3",
 		"@scalar/hono-api-reference": "^0.5.172",
 		"effect": "^3.14.11",
-		"@tieba/sdk": "workspace:*",
+		"tieba.js": "workspace:*",
 		"@tieba/db": "workspace:*",
 		"dotenv": "^16.4.5"
 	},

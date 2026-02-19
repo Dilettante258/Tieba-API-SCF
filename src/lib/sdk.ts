@@ -1,4 +1,4 @@
-import { TiebaClient, initClient } from "@tieba/sdk";
+import { TiebaClient, initClient } from "tieba.js";
 
 export function setupClient(): void {
 	const bduss = process.env.BDUSS;

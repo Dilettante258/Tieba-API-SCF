@@ -4,7 +4,7 @@ import {
 	getRawUserPost,
 	getThreads,
 	processUserPosts,
-} from "@tieba/sdk";
+} from "tieba.js";
 import { Effect } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
