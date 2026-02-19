@@ -1,8 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { cache } from 'hono/cache';
-
 import { forumAnalyzeRoute } from "./routes/forum-analyze.ts";
 import { forumSearchRoute } from "./routes/forum-search.ts";
 import { forumRoute } from "./routes/forum.ts";
@@ -45,11 +43,6 @@ const app = new Hono()
 		await next();
 		const maxAge = getCacheMaxAge(c.req.path);
 		const cacheControl = `public, max-age=${maxAge}, stale-while-revalidate=${maxAge * 2}`;
-		cache({
-			cacheName: 'my-app',
-			cacheControl,
-			cacheableStatusCodes: [200, 404, 412],
-		});
 		c.header(
 			"Cache-Control",
 			cacheControl,
