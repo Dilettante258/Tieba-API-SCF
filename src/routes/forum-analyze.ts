@@ -1,9 +1,13 @@
 import { zValidator } from "@hono/zod-validator";
-import { getPosts, getThreads } from "@tieba/sdk";
+import { getPosts } from "@tieba/sdk";
 import { Effect, Either, pipe } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
+import {
+	fetchForumThreadsEnough,
+	type ForumThreadInfo,
+} from "../lib/forum-threads.ts";
 
 // ── 请求参数 ──────────────────────────────────────────────
 
@@ -12,6 +16,10 @@ const analyzeQuery = z.object({
 	sort: z.string().optional().default("1"),
 	count: z.string().optional().default("50"),
 	depth: z.enum(["first", "all"]).optional().default("first"),
+	// 热门吧友权重
+	tw: z.string().optional().default("5"),
+	rw: z.string().optional().default("1"),
+	aw: z.string().optional().default("0.5"),
 });
 
 // ── 中文分词器（模块级单例） ─────────────────────────────
@@ -31,6 +39,7 @@ const STOP_WORDS = new Set([
 	"与", "或", "如", "因为", "所以", "但是", "如果", "虽然", "还是",
 	"已经", "还", "又", "再", "才", "只", "啊", "吧", "呢", "嗯",
 	"哦", "哈", "哈哈", "真的", "知道", "觉得", "然后", "这样",
+	"一下"
 ]);
 
 /** 对文本分词并累加词频（过滤停用词、单字、纯数字/标点） */
@@ -54,9 +63,8 @@ function cleanIpAddress(raw: string): string {
 
 // ── 数据聚合 ──────────────────────────────────────────────
 
-// 从 SDK 推断帖子列表和帖子回复的类型
-type ThreadsResult = Effect.Effect.Success<ReturnType<typeof getThreads>>;
-type ThreadInfo = NonNullable<ThreadsResult>["threadList"][number];
+// 从 SDK 推断帖子回复的类型
+type ThreadInfo = ForumThreadInfo;
 type PostsResult = Effect.Effect.Success<ReturnType<typeof getPosts>>;
 type Post = NonNullable<PostsResult>["postList"][number];
 type User = NonNullable<PostsResult>["userList"][number];
@@ -66,6 +74,8 @@ function aggregate(
 	threads: ThreadInfo[],
 	allPosts: Post[],
 	allUsers: User[],
+	weights: { thread: number; reply: number; agree: number },
+	postTids: string[],
 ) {
 	// 构建用户 Map（authorId → User）
 	const userMap = new Map<string, User>();
@@ -86,14 +96,38 @@ function aggregate(
 	const userIpSet = new Map<string, Set<string>>();
 
 	const levelCount = new Map<number, number>();
-	const timeData: Array<{ date: number; hour: number }> = [];
+	const postTimes: Array<{ time: number; isThread: boolean; }> = [];
 	const userPostCount = new Map<
 		string,
-		{ name: string; count: number; portrait: string }
+		{
+			name: string;
+			count: number;
+			portrait: string;
+			threadCount: number;
+			totalAgrees: number;
+		}
 	>();
+	// 点赞数最多的帖子候选
+	const likedPostCandidates: Array<{
+		tid: string;
+		floor: number;
+		author: string;
+		content: string;
+		agreeNum: number;
+	}> = [];
+	// 回复最多的回复候选（楼中楼数）
+	const repliedReplyCandidates: Array<{
+		tid: string;
+		floor: number;
+		author: string;
+		content: string;
+		subPostNumber: number;
+	}> = [];
 	const uniqueUserIds = new Set<string>();
 
-	for (const post of allPosts) {
+	for (let postIdx = 0; postIdx < allPosts.length; postIdx++) {
+		const post = allPosts[postIdx];
+		const postTid = postTids[postIdx] ?? post.tid;
 		const authorId = post.authorId || post.author?.id || "";
 		const author =
 			post.author ?? (authorId ? userMap.get(authorId) : undefined);
@@ -135,10 +169,45 @@ function aggregate(
 
 		// 时间分布
 		if (post.time) {
-			const d = new Date(post.time * 1000);
-			timeData.push({
-				date: post.time,
-				hour: d.getHours() + d.getMinutes() / 60,
+			postTimes.push({
+				time: post.time,
+				isThread: post.floor === 1,
+			});
+		}
+
+		// 提取文本摘要（点赞候选和回复候选共用）
+		const agreeNum = Number(post.agree?.agreeNum ?? 0);
+		const authorName = author?.nameShow || author?.name || authorId || "";
+		let excerpt = "";
+		if (post.content) {
+			for (const c of post.content) {
+				if (TEXT_CONTENT_TYPES.has(c.type) && c.text) {
+					excerpt += c.text;
+					if (excerpt.length >= 80) break;
+				}
+			}
+		}
+		const excerptText = excerpt.slice(0, 80);
+
+		// 点赞帖子候选
+		if (agreeNum > 0) {
+			likedPostCandidates.push({
+				tid: postTid,
+				floor: post.floor,
+				author: authorName,
+				content: excerptText,
+				agreeNum,
+			});
+		}
+
+		// 回复最多的回复候选（楼中楼数 > 0 的非主题贴）
+		if (post.floor > 1 && post.subPostNumber > 0) {
+			repliedReplyCandidates.push({
+				tid: postTid,
+				floor: post.floor,
+				author: authorName,
+				content: excerptText,
+				subPostNumber: post.subPostNumber,
 			});
 		}
 
@@ -147,15 +216,49 @@ function aggregate(
 			const existing = userPostCount.get(authorId);
 			if (existing) {
 				existing.count++;
+				if (post.floor === 1) existing.threadCount++;
+				existing.totalAgrees += agreeNum;
 			} else {
 				userPostCount.set(authorId, {
 					name: author.nameShow || author.name || authorId,
 					count: 1,
 					portrait: author.portrait || "",
+					threadCount: post.floor === 1 ? 1 : 0,
+					totalAgrees: agreeNum,
 				});
 			}
 		}
 	}
+
+	// ── 时间分布模式计算 ──
+	// 按时间排序，用 IQR 方法丢弃离群旧数据
+	const sortedTimes = postTimes.map((p) => p.time).sort((a, b) => a - b);
+	let lowerBound = sortedTimes[0] ?? 0;
+	if (sortedTimes.length > 20) {
+		const p10 = sortedTimes[Math.floor(sortedTimes.length * 0.1)];
+		const p90 = sortedTimes[Math.floor(sortedTimes.length * 0.9)];
+		const iqr = p90 - p10;
+		const bound = p10 - iqr * 1.5;
+		if (bound > lowerBound) lowerBound = bound;
+	}
+	const filteredPosts = postTimes.filter((p) => p.time >= lowerBound);
+	const fTimes = filteredPosts.map((p) => p.time).sort((a, b) => a - b);
+	const timeSpan =
+		fTimes.length > 1 ? fTimes[fTimes.length - 1] - fTimes[0] : 0;
+	const timeMode =
+		timeSpan / 86400 <= 3 ? ("hour" as const) : ("day" as const);
+
+	const timeDistData = filteredPosts.map((p) => {
+		const d = new Date(p.time * 1000);
+		const type = p.isThread ? "主题贴" : "回复";
+		const value = p.isThread ? -1 : 1;
+		// 返回原始毫秒时间戳，前端按粒度（5分/15分/1小时/1天）分桶
+		return {
+			time: d.getTime(),
+			type,
+			value,
+		};
+	});
 
 	// IP 分布（按数量降序），附带该地区发言最多的 5 个用户
 	const ipDistribution = [...ipCount.entries()]
@@ -167,7 +270,7 @@ function aggregate(
 						.slice(0, 5)
 						.map((u) => u.name)
 				: [];
-			return { name, value, topUsers };
+			return { name, value, topUsers, userCount: regionUsers?.size ?? 0 };
 		})
 		.sort((a, b) => b.value - a.value);
 
@@ -199,6 +302,46 @@ function aggregate(
 			agreeNum: Number(t.agree?.agreeNum ?? 0),
 		};
 	});
+
+	// 点赞最多的帖子 Top 40（附带所属主题标题，前端按帖子/回复分类展示）
+	const threadTitleMap = new Map<string, string>();
+	for (const t of threads) {
+		threadTitleMap.set(t.id, t.title || "无标题");
+	}
+	const topLikedPosts = likedPostCandidates
+		.sort((a, b) => b.agreeNum - a.agreeNum)
+		.slice(0, 40)
+		.map((p) => ({
+			...p,
+			title: threadTitleMap.get(p.tid) ?? "无标题",
+		}));
+
+	// 回复最多的回复 Top 20（按楼中楼数排序）
+	const topRepliedReplies = repliedReplyCandidates
+		.sort((a, b) => b.subPostNumber - a.subPostNumber)
+		.slice(0, 20)
+		.map((p) => ({
+			...p,
+			title: threadTitleMap.get(p.tid) ?? "无标题",
+		}));
+
+	// 热门吧友：score = threadCount × tw + replyCount × rw + totalAgrees × aw
+	const hotUsers = [...userPostCount.values()]
+		.map((u) => {
+			const replyCount = u.count - u.threadCount;
+			const score =
+				u.threadCount * weights.thread + replyCount * weights.reply + u.totalAgrees * weights.agree;
+			return {
+				name: u.name,
+				portrait: u.portrait,
+				threadCount: u.threadCount,
+				replyCount,
+				totalAgrees: u.totalAgrees,
+				score: Math.round(score),
+			};
+		})
+		.sort((a, b) => b.score - a.score)
+		.slice(0, 30);
 
 	// 词频统计（用于词云）
 	const wordCount = new Map<string, number>();
@@ -245,9 +388,12 @@ function aggregate(
 		},
 		ipDistribution,
 		levelDistribution,
-		timeDistribution: timeData,
+		timeDistribution: { mode: timeMode, data: timeDistData },
 		topUsers,
 		threadHeat,
+		topLikedPosts,
+		topRepliedReplies,
+		hotUsers,
 		wordCloud,
 		ipChangedUsers,
 	};
@@ -259,28 +405,18 @@ export const forumAnalyzeRoute = new Hono().get(
 	"/analyze",
 	zValidator("query", analyzeQuery),
 	async (c) => {
-		const { fname, sort, count, depth } = c.req.valid("query");
+		const { fname, sort, count, depth, tw, rw, aw } = c.req.valid("query");
 		const threadCount = Math.min(Math.max(Number(count) || 50, 1), 300);
-		const pages = Math.ceil(threadCount / 30);
+		const sortType = Number(sort) || 1;
 
 		return streamSSE(c, async (stream) => {
 			try {
-				// Step 1: 并发抓取帖子列表
-				const pageEffects = Array.from({ length: pages }, (_, i) =>
-					getThreads({
-						fname,
-						page: i + 1,
-						sort: Number(sort) || 1,
-						rn: 30,
-					}),
-				);
-				const pageResults = await Effect.runPromise(
-					Effect.all(pageEffects, { concurrency: 5 }),
-				);
-				let threads = pageResults.flatMap(
-					(r) => r?.threadList ?? [],
-				);
-				threads = threads.filter((t) => !t.isTop).slice(0, threadCount);
+				// Step 1: 按估算页数并发抓取帖子列表
+				const threads = await fetchForumThreadsEnough({
+					fname,
+					sort: sortType,
+					targetCount: threadCount,
+				});
 
 				await stream.writeSSE({
 					data: JSON.stringify({
@@ -295,6 +431,7 @@ export const forumAnalyzeRoute = new Hono().get(
 
 				const allPosts: Post[] = [];
 				const allUsers: User[] = [];
+				const allPostTids: string[] = [];
 
 				const postEffects = threads.map((t) =>
 					pipe(
@@ -318,17 +455,26 @@ export const forumAnalyzeRoute = new Hono().get(
 					}),
 				);
 
-				for (const r of postResults) {
+				for (let i = 0; i < postResults.length; i++) {
+					const r = postResults[i];
 					if (Either.isRight(r) && r.right) {
-						if (r.right.postList)
+						const tid = threads[i].id;
+						if (r.right.postList) {
+							for (const _ of r.right.postList) allPostTids.push(tid);
 							allPosts.push(...r.right.postList);
+						}
 						if (r.right.userList)
 							allUsers.push(...r.right.userList);
 					}
 				}
 
 				// Step 3: 聚合并返回
-				const result = aggregate(fname, threads, allPosts, allUsers);
+				const weights = {
+					thread: Number(tw) || 5,
+					reply: Number(rw) || 1,
+					agree: Number(aw) || 0.5,
+				};
+				const result = aggregate(fname, threads, allPosts, allUsers, weights, allPostTids);
 				await stream.writeSSE({
 					data: JSON.stringify({ type: "done", data: result }),
 				});

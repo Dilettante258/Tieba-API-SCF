@@ -7,6 +7,7 @@ import { forumAnalyzeRoute } from "./routes/forum-analyze.ts";
 import { forumSearchRoute } from "./routes/forum-search.ts";
 import { forumRoute } from "./routes/forum.ts";
 import { postRoute } from "./routes/post.ts";
+import { exportRoute } from "./routes/export.ts";
 import { userRoute } from "./routes/user.ts";
 import { handleError } from "./utils/error.ts";
 
@@ -56,6 +57,7 @@ const app = new Hono()
 	})
 	.route("/user", userRoute)
 	.route("/post", postRoute)
+	.route("/export", exportRoute)
 	.route("/forum", forumRoute)
 	.route("/forum", forumAnalyzeRoute)
 	.route("/forum", forumSearchRoute);

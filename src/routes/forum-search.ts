@@ -1,9 +1,10 @@
 import { zValidator } from "@hono/zod-validator";
-import { getPosts, getThreads } from "@tieba/sdk";
+import { getPosts } from "@tieba/sdk";
 import { Effect, Either, pipe } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
+import { fetchForumThreadsEnough } from "../lib/forum-threads.ts";
 
 // ── 请求参数 ──────────────────────────────────────────────
 
@@ -110,28 +111,16 @@ export const forumSearchRoute = new Hono().get(
 		}
 
 		const threadCount = Math.min(Math.max(Number(count) || 100, 1), 300);
-		const pages = Math.ceil(threadCount / 30);
+		const sortType = Number(sort) || 1;
 
 		return streamSSE(c, async (stream) => {
 			try {
-				// Step 1: 并发抓取帖子列表
-				const pageEffects = Array.from({ length: pages }, (_, i) =>
-					getThreads({
-						fname,
-						page: i + 1,
-						sort: Number(sort) || 1,
-						rn: 30,
-					}),
-				);
-				const pageResults = await Effect.runPromise(
-					Effect.all(pageEffects, { concurrency: 5 }),
-				);
-				let threads = pageResults.flatMap(
-					(r) => r?.threadList ?? [],
-				);
-				threads = threads
-					.filter((t) => !t.isTop)
-					.slice(0, threadCount);
+				// Step 1: 按估算页数并发抓取帖子列表
+				const threads = await fetchForumThreadsEnough({
+					fname,
+					sort: sortType,
+					targetCount: threadCount,
+				});
 
 				await stream.writeSSE({
 					data: JSON.stringify({
