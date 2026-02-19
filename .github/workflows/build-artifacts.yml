@@ -1,0 +1,71 @@
+name: API Build Artifacts
+
+on:
+  push:
+    branches: [v3]
+    tags: ["v*"]
+  pull_request:
+    branches: [v3]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: api-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Rewrite workspace deps for standalone CI
+        run: |
+          bun -e "import { readFileSync, writeFileSync } from 'node:fs'; const pkg = JSON.parse(readFileSync('package.json', 'utf8')); if (pkg.dependencies?.['@tieba/sdk'] === 'workspace:*') pkg.dependencies['@tieba/sdk'] = '^3.0.0'; if (pkg.dependencies?.['@tieba/db'] === 'workspace:*') delete pkg.dependencies['@tieba/db']; writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\\n');"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build for Bun runtime
+        run: |
+          rm -rf out out-bun out-node artifacts
+          bun run build
+          mv out out-bun
+
+      - name: Build for Node runtime
+        run: |
+          bun run build:node
+          mv out out-node
+
+      - name: Pack build outputs
+        run: |
+          mkdir -p artifacts
+          SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+          tar -C out-bun -czf "artifacts/api-bun-${SHORT_SHA}.tar.gz" .
+          tar -C out-node -czf "artifacts/api-node-${SHORT_SHA}.tar.gz" .
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-build-${{ github.sha }}
+          path: artifacts/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish release assets on tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.tar.gz
+          generate_release_notes: true
