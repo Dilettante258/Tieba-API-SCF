@@ -6,7 +6,8 @@
 	"main": "src/index.ts",
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
-		"build": "bun build ./src/index.ts --outdir=dist --target=bun --packages=external",
+		"build": "bun build ./src/index.ts --outdir=out --target=bun",
+		"build:node": "bun build ./src/index.ts --outdir=out --target=node",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -18,9 +19,6 @@
 		"effect": "^3.14.11",
 		"@tieba/sdk": "workspace:*",
 		"@tieba/db": "workspace:*",
-		"@node-rs/jieba": "^2.0.1",
-		"log4js": "^6.9.1",
-		"p-limit": "^6.2.0",
 		"dotenv": "^16.4.5"
 	},
 	"devDependencies": {
