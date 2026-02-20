@@ -76,7 +76,7 @@ jobs:
           generate_release_notes: true
 
       - name: Deploy Cloudflare Worker on tag
-        if: startsWith(github.ref, 'refs/tags/') && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != ''
+        if: startsWith(github.ref, 'refs/tags/') && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -85,4 +85,6 @@ jobs:
           secrets: |
             BDUSS
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           BDUSS: ${{ secrets.BDUSS }}
