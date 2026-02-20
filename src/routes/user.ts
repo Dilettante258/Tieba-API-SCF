@@ -181,7 +181,7 @@ export const userRoute = new Hono()
 			const userId = await UserIdResolver.resolve(method, id, MethodEnum.id);
 			const profile = await Effect.runPromise(getProfile(userId));
 			const user = profile?.user;
-			const name = user?.name ?? "";
+			const name = user?.name ?? method === 'un' ? id : "";
 			const panel = await Effect.runPromise(getPanel(name));
 
 			// 从 portrait 字符串末尾提取头像上传时间戳
