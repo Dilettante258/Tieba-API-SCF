@@ -75,15 +75,24 @@ jobs:
           files: artifacts/*.tar.gz
           generate_release_notes: true
 
+      - name: Sync Cloudflare Worker secrets on tag
+        if: startsWith(github.ref, 'refs/tags/') && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && secrets.BDUSS != ''
+        run: |
+          printf '%s' "$BDUSS" | bunx wrangler secret put BDUSS \
+            --name tieba-api-scf \
+            --config wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BDUSS: ${{ secrets.BDUSS }}
+
       - name: Deploy Cloudflare Worker on tag
-        if: startsWith(github.ref, 'refs/tags/') && env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        if: startsWith(github.ref, 'refs/tags/') && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != ''
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --config wrangler.jsonc
-          secrets: |
-            BDUSS
+          command: deploy --name tieba-api-scf --config wrangler.jsonc
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
