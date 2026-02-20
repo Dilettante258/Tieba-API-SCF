@@ -21,35 +21,31 @@ interface CreateAppOptions {
 }
 
 export function createApp(options: CreateAppOptions = {}) {
-	const app = new Hono();
-	app.use("*", logger());
-	if (options.cacheRuntime === "worker") {
-		app.use("*", normalCacheMiddleware);
-	} else {
-		app.use("*", cfCacheMiddleware);
-	}
-	app.use(
-		"*",
-		cors({
-			origin: [
-				"http://localhost:5173",
-				"https://www.eztb.org",
-				local,
-				foreign,
-				domestic,
-			],
-			allowMethods: ["GET", "POST", "OPTIONS"],
-			maxAge: 7200,
-			credentials: true,
-		}),
-	);
-	app.route("/user", userRoute);
-	app.route("/post", postRoute);
-	app.route("/export", exportRoute);
-	app.route("/forum", forumRoute);
-	app.route("/forum", forumAnalyzeRoute);
-	app.route("/forum", forumSearchRoute);
-	app.route("/health", healthRoute);
+	const app = new Hono()
+		.onError(handleError)
+		.use("*", logger())
+		.use(
+			"*",
+			cors({
+				origin: [
+					"http://localhost:5173",
+					"https://www.eztb.org",
+					local,
+					foreign,
+					domestic,
+				],
+				allowMethods: ["GET", "POST", "OPTIONS"],
+				maxAge: 7200,
+				credentials: true,
+			}),
+		)
+		.route("/user", userRoute)
+		.route("/post", postRoute)
+		.route("/export", exportRoute)
+		.route("/forum", forumRoute)
+		.route("/forum", forumAnalyzeRoute)
+		.route("/forum", forumSearchRoute)
+		.route("/health", healthRoute);
 	app
 		.all("/", (c) => c.redirect("/docs", 301))
 		.get(
@@ -97,7 +93,11 @@ export function createApp(options: CreateAppOptions = {}) {
 			}),
 		);
 
-	app.onError(handleError);
+	if (options.cacheRuntime === "worker") {
+		app.use("*", normalCacheMiddleware);
+	} else {
+		app.use("*", cfCacheMiddleware);
+	}
 
 	return app;
 }

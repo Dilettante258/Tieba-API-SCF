@@ -100,3 +100,19 @@ BDUSS=你的BDUSS node ./api-node/index.js
 
 - Query：优先使用字段 `.describe(...)`
 - `meta({ ref })`：优先用于请求体/响应体 schema 复用
+
+## Cloudflare Worker 打包说明
+
+Worker 环境构建时，建议将 `undici` 别名到 `tieba.js` 内置 shim：
+
+```bash
+esbuild ./src/worker.ts \
+  --bundle \
+  --platform=node \
+  --format=esm \
+  --target=node22 \
+  --alias:undici=./node_modules/tieba.js/dist/shims/undici.js \
+  --outfile=out-worker/worker.js
+```
+
+原因是 `undici` 在 Worker 场景可能触发 Node/CJS 相关兼容问题；使用该别名可以保持运行时可用性。

@@ -8,7 +8,7 @@
 		"dev": "tsx watch src/index.ts",
 		"build": "bun build ./src/index.ts --outdir=out --target=bun",
 		"build:node": "rm -rf out && esbuild ./src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=out/index.js",
-		"build:worker": "rm -rf out-worker && esbuild ./src/worker.ts --bundle --platform=node --format=esm --target=node22 --alias:undici=./src/shims/undici.ts --outfile=out-worker/worker.js",
+		"build:worker": "rm -rf out-worker && esbuild ./src/worker.ts --bundle --platform=node --format=esm --target=node22 --alias:undici=./node_modules/tieba.js/dist/shims/undici.js --outfile=out-worker/worker.js",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
