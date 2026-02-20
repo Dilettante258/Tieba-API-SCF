@@ -1,9 +1,9 @@
-import { zValidator } from "@hono/zod-validator";
+import { describeRoute, validator as zValidator } from "hono-openapi";
 import { getPosts } from "tieba.js";
 import { Effect, Either, pipe } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { z } from "zod";
+import { z } from "zod/v4";
 import {
 	fetchForumThreadsEnough,
 	type ForumThreadInfo,
@@ -11,16 +11,42 @@ import {
 
 // ── 请求参数 ──────────────────────────────────────────────
 
-const analyzeQuery = z.object({
-	fname: z.string(),
-	sort: z.string().optional().default("1"),
-	count: z.string().optional().default("50"),
-	depth: z.enum(["first", "all"]).optional().default("first"),
-	// 热门吧友权重
-	tw: z.string().optional().default("5"),
-	rw: z.string().optional().default("1"),
-	aw: z.string().optional().default("0.5"),
-});
+const analyzeQuery = z
+	.object({
+		fname: z.string().describe("贴吧名称，例如：v吧"),
+		sort: z
+			.string()
+			.optional()
+			.default("1")
+			.describe("排序方式：1=最新回复，0=最新发帖"),
+		count: z
+			.string()
+			.optional()
+			.default("50")
+			.describe("扫描主题数量，范围 1~300"),
+		depth: z
+			.enum(["first", "all"])
+			.optional()
+			.default("first")
+			.describe("抓取深度：first=仅首层，all=抓取更多楼层"),
+		// 热门吧友权重
+		tw: z
+			.string()
+			.optional()
+			.default("5")
+			.describe("热门吧友评分中的主题帖权重"),
+		rw: z
+			.string()
+			.optional()
+			.default("1")
+			.describe("热门吧友评分中的回复数权重"),
+		aw: z
+			.string()
+			.optional()
+			.default("0.5")
+			.describe("热门吧友评分中的获赞数权重"),
+	})
+	.describe("贴吧综合分析参数");
 
 // ── 中文分词器（模块级单例） ─────────────────────────────
 
@@ -31,15 +57,83 @@ const TEXT_CONTENT_TYPES = new Set([0, 1, 4, 9, 18, 27, 40]);
 
 /** 常见停用词（单字虚词、标点等） */
 const STOP_WORDS = new Set([
-	"的", "了", "是", "在", "我", "有", "和", "就", "不", "人",
-	"都", "一", "一个", "上", "也", "很", "到", "说", "要", "去",
-	"你", "会", "着", "没有", "看", "好", "自己", "这", "他", "她",
-	"吗", "那", "它", "被", "从", "把", "让", "用", "对", "为",
-	"这个", "那个", "什么", "怎么", "可以", "没", "能", "但", "而",
-	"与", "或", "如", "因为", "所以", "但是", "如果", "虽然", "还是",
-	"已经", "还", "又", "再", "才", "只", "啊", "吧", "呢", "嗯",
-	"哦", "哈", "哈哈", "真的", "知道", "觉得", "然后", "这样",
-	"一下"
+	"的",
+	"了",
+	"是",
+	"在",
+	"我",
+	"有",
+	"和",
+	"就",
+	"不",
+	"人",
+	"都",
+	"一",
+	"一个",
+	"上",
+	"也",
+	"很",
+	"到",
+	"说",
+	"要",
+	"去",
+	"你",
+	"会",
+	"着",
+	"没有",
+	"看",
+	"好",
+	"自己",
+	"这",
+	"他",
+	"她",
+	"吗",
+	"那",
+	"它",
+	"被",
+	"从",
+	"把",
+	"让",
+	"用",
+	"对",
+	"为",
+	"这个",
+	"那个",
+	"什么",
+	"怎么",
+	"可以",
+	"没",
+	"能",
+	"但",
+	"而",
+	"与",
+	"或",
+	"如",
+	"因为",
+	"所以",
+	"但是",
+	"如果",
+	"虽然",
+	"还是",
+	"已经",
+	"还",
+	"又",
+	"再",
+	"才",
+	"只",
+	"啊",
+	"吧",
+	"呢",
+	"嗯",
+	"哦",
+	"哈",
+	"哈哈",
+	"真的",
+	"知道",
+	"觉得",
+	"然后",
+	"这样",
+	"一下",
 ]);
 
 /** 对文本分词并累加词频（过滤停用词、单字、纯数字/标点） */
@@ -96,7 +190,7 @@ function aggregate(
 	const userIpSet = new Map<string, Set<string>>();
 
 	const levelCount = new Map<number, number>();
-	const postTimes: Array<{ time: number; isThread: boolean; }> = [];
+	const postTimes: Array<{ time: number; isThread: boolean }> = [];
 	const userPostCount = new Map<
 		string,
 		{
@@ -245,8 +339,7 @@ function aggregate(
 	const fTimes = filteredPosts.map((p) => p.time).sort((a, b) => a - b);
 	const timeSpan =
 		fTimes.length > 1 ? fTimes[fTimes.length - 1] - fTimes[0] : 0;
-	const timeMode =
-		timeSpan / 86400 <= 3 ? ("hour" as const) : ("day" as const);
+	const timeMode = timeSpan / 86400 <= 3 ? ("hour" as const) : ("day" as const);
 
 	const timeDistData = filteredPosts.map((p) => {
 		const d = new Date(p.time * 1000);
@@ -291,8 +384,7 @@ function aggregate(
 		const aid = t.authorId || t.author?.id || "";
 		const u = aid ? userMap.get(aid) : undefined;
 		const author =
-			t.author?.nameShow || t.author?.name ||
-			u?.nameShow || u?.name || "";
+			t.author?.nameShow || t.author?.name || u?.nameShow || u?.name || "";
 		return {
 			title: t.title || "无标题",
 			tid: t.id,
@@ -330,7 +422,9 @@ function aggregate(
 		.map((u) => {
 			const replyCount = u.count - u.threadCount;
 			const score =
-				u.threadCount * weights.thread + replyCount * weights.reply + u.totalAgrees * weights.agree;
+				u.threadCount * weights.thread +
+				replyCount * weights.reply +
+				u.totalAgrees * weights.agree;
 			return {
 				name: u.name,
 				portrait: u.portrait,
@@ -403,6 +497,17 @@ function aggregate(
 
 export const forumAnalyzeRoute = new Hono().get(
 	"/analyze",
+	describeRoute({
+		tags: ["forum"],
+		summary: "贴吧综合分析",
+		description:
+			"聚合指定贴吧的主题、回复、用户、IP、等级、词频等数据，使用 SSE 流式返回处理进度和最终分析结果。",
+		responses: {
+			200: {
+				description: "SSE 流式返回分析进度和结果",
+			},
+		},
+	}),
 	zValidator("query", analyzeQuery),
 	async (c) => {
 		const { fname, sort, count, depth, tw, rw, aw } = c.req.valid("query");
@@ -426,8 +531,7 @@ export const forumAnalyzeRoute = new Hono().get(
 				});
 
 				// Step 2: 并发抓取帖子内容（每个帖子最多 5 页）
-				const postPage =
-					depth === "all" ? ([1, 5] as [number, number]) : 1;
+				const postPage = depth === "all" ? ([1, 5] as [number, number]) : 1;
 
 				const allPosts: Post[] = [];
 				const allUsers: User[] = [];
@@ -463,8 +567,7 @@ export const forumAnalyzeRoute = new Hono().get(
 							for (const _ of r.right.postList) allPostTids.push(tid);
 							allPosts.push(...r.right.postList);
 						}
-						if (r.right.userList)
-							allUsers.push(...r.right.userList);
+						if (r.right.userList) allUsers.push(...r.right.userList);
 					}
 				}
 
@@ -474,7 +577,14 @@ export const forumAnalyzeRoute = new Hono().get(
 					reply: Number(rw) || 1,
 					agree: Number(aw) || 0.5,
 				};
-				const result = aggregate(fname, threads, allPosts, allUsers, weights, allPostTids);
+				const result = aggregate(
+					fname,
+					threads,
+					allPosts,
+					allUsers,
+					weights,
+					allPostTids,
+				);
 				await stream.writeSSE({
 					data: JSON.stringify({ type: "done", data: result }),
 				});
@@ -482,8 +592,7 @@ export const forumAnalyzeRoute = new Hono().get(
 				await stream.writeSSE({
 					data: JSON.stringify({
 						type: "error",
-						message:
-							err instanceof Error ? err.message : String(err),
+						message: err instanceof Error ? err.message : String(err),
 					}),
 				});
 			}

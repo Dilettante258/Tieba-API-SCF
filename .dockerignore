@@ -4,3 +4,4 @@
 .turbo
 node_modules
 out
+.wrangler

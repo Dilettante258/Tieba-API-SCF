@@ -1,8 +1,10 @@
 node_modules/
 dist/
 out/
+out-worker/
 .turbo/
 *.tsbuildinfo
 .env
 .env.local
 .DS_Store
+.wrangler

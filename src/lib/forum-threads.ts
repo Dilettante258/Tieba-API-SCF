@@ -1,7 +1,9 @@
 import { getThreads } from "tieba.js";
 import { Effect } from "effect";
 
-export type ThreadsResult = Effect.Effect.Success<ReturnType<typeof getThreads>>;
+export type ThreadsResult = Effect.Effect.Success<
+	ReturnType<typeof getThreads>
+>;
 export type ForumThreadInfo = NonNullable<ThreadsResult>["threadList"][number];
 
 const DEFAULT_PAGE_SIZE = 30;

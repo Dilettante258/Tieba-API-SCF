@@ -7,23 +7,25 @@
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
 		"build": "bun build ./src/index.ts --outdir=out --target=bun",
-		"build:node": "bun build ./src/index.ts --outdir=out --target=node",
+		"build:node": "rm -rf out && esbuild ./src/index.ts --bundle --platform=node --format=esm --target=node22 --outfile=out/index.js",
+		"build:worker": "rm -rf out-worker && esbuild ./src/worker.ts --bundle --platform=node --format=esm --target=node22 --alias:undici=./src/shims/undici.ts --outfile=out-worker/worker.js",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"hono": "^4.6.8",
 		"@hono/node-server": "^1.13.4",
-		"@hono/zod-validator": "^0.4",
-		"zod": "^3",
-		"@scalar/hono-api-reference": "^0.5.172",
-		"effect": "^3.14.11",
-		"tieba.js": "workspace:*",
+		"@hono/standard-validator": "^0.2.2",
+		"@scalar/hono-api-reference": "^0.9.44",
 		"@tieba/db": "workspace:*",
-		"dotenv": "^16.4.5"
+		"dotenv": "^16.4.5",
+		"effect": "^3.14.11",
+		"hono": "^4.6.8",
+		"hono-openapi": "^1.2.0",
+		"tieba.js": "workspace:*",
+		"zod": "^4",
+		"zod-openapi": "^4"
 	},
 	"devDependencies": {
-		"tsx": "^4.19.2",
-		"esbuild": "^0.25.0",
-		"@types/node": "^24"
+		"@types/node": "^24",
+		"esbuild": "^0.27.3"
 	}
 }

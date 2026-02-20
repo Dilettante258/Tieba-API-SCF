@@ -39,7 +39,7 @@ jobs:
 
       - name: Build for Bun runtime
         run: |
-          rm -rf out out-bun out-node artifacts
+          rm -rf out out-bun out-node out-worker artifacts
           bun run build
           mv out out-bun
 
@@ -48,12 +48,17 @@ jobs:
           bun run build:node
           mv out out-node
 
+      - name: Build for Cloudflare Worker (Node target)
+        run: |
+          bun run build:worker
+
       - name: Pack build outputs
         run: |
           mkdir -p artifacts
           SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
           tar -C out-bun -czf "artifacts/api-bun-${SHORT_SHA}.tar.gz" .
           tar -C out-node -czf "artifacts/api-node-${SHORT_SHA}.tar.gz" .
+          tar -C out-worker -czf "artifacts/api-worker-node-${SHORT_SHA}.tar.gz" .
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -69,3 +74,15 @@ jobs:
         with:
           files: artifacts/*.tar.gz
           generate_release_notes: true
+
+      - name: Deploy Cloudflare Worker on tag
+        if: startsWith(github.ref, 'refs/tags/') && secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != ''
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.jsonc
+          secrets: |
+            BDUSS
+        env:
+          BDUSS: ${{ secrets.BDUSS }}

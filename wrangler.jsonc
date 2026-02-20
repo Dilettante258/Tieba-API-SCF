@@ -1,0 +1,34 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+
+	// Worker 名称（可在 CI 中用 --name 覆盖）
+	"name": "tieba-api-scf",
+
+	// 使用 build:worker 产物发布，避免运行时再做打包差异
+	"main": "out-worker/worker.js",
+
+	// 与当前 CI 配置保持一致
+	"compatibility_date": "2026-02-20",
+	"compatibility_flags": ["nodejs_compat"],
+
+	// 走 workers.dev 域名（如需自定义域名可改为 routes）
+	"workers_dev": true,
+
+	// 自定义域名
+	"routes": [
+		{
+			"pattern": "cf.eztb.org",
+			"custom_domain": true
+		}
+	],
+
+	// 观测配置
+	"observability": {
+		"enabled": true
+	}
+
+	// 说明：
+	// 1) 运行前先执行：bun run build:worker
+	// 2) 通过 secret 注入 BDUSS，不要写进配置文件：
+	//    wrangler secret put BDUSS
+}

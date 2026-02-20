@@ -1,23 +1,45 @@
-import { zValidator } from "@hono/zod-validator";
+import { describeRoute, validator as zValidator } from "hono-openapi";
 import { getPosts } from "tieba.js";
 import { Effect, pipe } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { z } from "zod";
+import { z } from "zod/v4";
 import { fetchForumThreadsEnough } from "../lib/forum-threads.ts";
 
 // ── 请求参数 ──────────────────────────────────────────────
 
-const searchQuery = z.object({
-	fname: z.string(),
-	// 用户条件：type:value 格式，逗号分隔。如 "uid:123,un:用户名,id:456"
-	users: z.string().optional().default(""),
-	// 关键词条件：逗号分隔
-	keywords: z.string().optional().default(""),
-	sort: z.string().optional().default("1"),
-	count: z.string().optional().default("100"),
-	depth: z.enum(["first", "all"]).optional().default("first"),
-});
+const searchQuery = z
+	.object({
+		fname: z.string().describe("贴吧名称，例如：v吧"),
+		// 用户条件：type:value 格式，逗号分隔。如 "uid:123,un:用户名,id:456"
+		users: z
+			.string()
+			.optional()
+			.default("")
+			.describe("用户筛选条件，格式：type:value，多个用逗号分隔"),
+		// 关键词条件：逗号分隔
+		keywords: z
+			.string()
+			.optional()
+			.default("")
+			.describe("关键词列表，多个用逗号分隔"),
+		sort: z
+			.string()
+			.optional()
+			.default("1")
+			.describe("排序方式：1=最新回复，0=最新发帖"),
+		count: z
+			.string()
+			.optional()
+			.default("100")
+			.describe("扫描主题数量，范围 1~300"),
+		depth: z
+			.enum(["first", "all"])
+			.optional()
+			.default("first")
+			.describe("抓取深度：first=仅首层，all=抓取更多楼层"),
+	})
+	.describe("贴吧帖子检索参数");
 
 // ── 用户条件解析 ──────────────────────────────────────────
 
@@ -76,10 +98,7 @@ function matchesUser(
 				if (authorId === c.value) return true;
 				break;
 			case "un":
-				if (
-					author?.name === c.value ||
-					author?.nameShow === c.value
-				)
+				if (author?.name === c.value || author?.nameShow === c.value)
 					return true;
 				break;
 			case "id":
@@ -94,10 +113,23 @@ function matchesUser(
 
 export const forumSearchRoute = new Hono().get(
 	"/search",
+	describeRoute({
+		tags: ["forum"],
+		summary: "吧内条件检索",
+		description:
+			"在指定贴吧内按用户条件和关键词筛选帖子，使用 SSE 持续返回进度与匹配结果。",
+		responses: {
+			200: {
+				description: "SSE 流式返回检索进度和结果",
+			},
+			400: {
+				description: "请求参数不合法（未提供用户或关键词条件）",
+			},
+		},
+	}),
 	zValidator("query", searchQuery),
 	async (c) => {
-		const { fname, users, keywords, sort, count, depth } =
-			c.req.valid("query");
+		const { fname, users, keywords, sort, count, depth } = c.req.valid("query");
 
 		const userConditions = parseUserConditions(users);
 		const keywordList = keywords
@@ -130,8 +162,7 @@ export const forumSearchRoute = new Hono().get(
 				});
 
 				// Step 2: 逐帖抓取 + 过滤 + 推送匹配
-				const postPage =
-					depth === "all" ? ([1, 10] as [number, number]) : 1;
+				const postPage = depth === "all" ? ([1, 10] as [number, number]) : 1;
 
 				let totalMatches = 0;
 
@@ -164,19 +195,11 @@ export const forumSearchRoute = new Hono().get(
 
 								if (result?.postList) {
 									for (const post of result.postList) {
-										const authorId =
-											post.authorId ||
-											post.author?.id ||
-											"";
+										const authorId = post.authorId || post.author?.id || "";
 										const author =
 											post.author ??
-											(authorId
-												? userMap.get(authorId)
-												: undefined);
-										const authorName =
-											author?.nameShow ||
-											author?.name ||
-											"";
+											(authorId ? userMap.get(authorId) : undefined);
+										const authorName = author?.nameShow || author?.name || "";
 
 										const text = extractText(post.content);
 
@@ -189,9 +212,7 @@ export const forumSearchRoute = new Hono().get(
 										const isKeywordMatch =
 											keywordList.length > 0 &&
 											keywordList.some(
-												(kw) =>
-													threadTitle.includes(kw) ||
-													text.includes(kw),
+												(kw) => threadTitle.includes(kw) || text.includes(kw),
 											);
 
 										if (isUserMatch || isKeywordMatch) {
@@ -202,8 +223,7 @@ export const forumSearchRoute = new Hono().get(
 												floor: post.floor,
 												content: text,
 												authorName,
-												authorPortrait:
-													author?.portrait || "",
+												authorPortrait: author?.portrait || "",
 												time: post.time,
 											});
 										}
@@ -250,8 +270,7 @@ export const forumSearchRoute = new Hono().get(
 				await stream.writeSSE({
 					data: JSON.stringify({
 						type: "error",
-						message:
-							err instanceof Error ? err.message : String(err),
+						message: err instanceof Error ? err.message : String(err),
 					}),
 				});
 			}
