@@ -40,6 +40,25 @@ docker run --rm -p 8000:8000 \
 
 启动后默认地址：`http://localhost:8000`
 
+> 说明：当前发布的 Docker 镜像默认使用 **Node 运行时**，并由 GitHub Actions `ubuntu-latest` 构建，镜像架构为 **`linux/amd64`**。  
+> 如果你希望使用 **Bun 运行时**，请使用仓库内的 `Dockerfile.bun` 自行构建镜像。
+
+### 1.1) 本地构建 Docker 镜像
+
+默认 `Dockerfile` 使用 Node 运行时构建（推荐）：
+
+```bash
+docker build -t tieba-api:node .
+docker run --rm -p 8000:8000 -e BDUSS=你的BDUSS tieba-api:node
+```
+
+`Dockerfile.bun` 为 Bun 备用构建：
+
+```bash
+docker build -f Dockerfile.bun -t tieba-api:bun .
+docker run --rm -p 8000:8000 -e BDUSS=你的BDUSS tieba-api:bun
+```
+
 ### 2) 使用 Release 构建产物运行
 
 Release 中提供：

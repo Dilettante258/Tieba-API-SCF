@@ -1,4 +1,4 @@
-name: API Docker (Bun Runtime)
+name: API Docker (Node Runtime)
 
 on:
   push:
