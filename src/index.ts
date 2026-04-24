@@ -1,14 +1,29 @@
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
+import { runExportMode } from "./export-mode/runner.ts";
 import { setupClient } from "./lib/sdk.ts";
 
-setupClient();
+const isExportMode =
+	process.env.EXPORT_MODE === "true" || process.argv.includes("--export");
 
-const app = createApp({ cacheRuntime: "server" });
-
-export type AppType = typeof app;
+export type AppType = ReturnType<typeof createApp>;
 
 const port = Number(process.env.PORT) || 8000;
-console.log(`Server is running on http://localhost:${port}`);
 
-serve({ fetch: app.fetch, port });
+async function main(): Promise<void> {
+	setupClient();
+	if (isExportMode) {
+		await runExportMode();
+		return;
+	}
+
+	const app = createApp({ cacheRuntime: "server" });
+
+	console.log(`Server is running on http://localhost:${port}`);
+	serve({ fetch: app.fetch, port });
+}
+
+void main().catch((error) => {
+	console.error(error);
+	process.exit(1);
+});

@@ -6,25 +6,31 @@
 	"main": "src/index.ts",
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
+		"export": "bun src/index.ts --export",
 		"build": "bun build ./src/index.ts --outdir=out --target=bun",
 		"build:node": "rm -rf out && esbuild ./src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=out/index.js",
-		"build:worker": "rm -rf out-worker && esbuild ./src/worker.ts --bundle --platform=node --format=esm --target=node22 --alias:undici=./node_modules/tieba.js/dist/shims/undici.js --outfile=out-worker/worker.js",
-		"typecheck": "tsc --noEmit"
+		"build:worker": "node scripts/build-worker.mjs",
+		"typecheck": "tsc --noEmit",
+		"db:studio": "drizzle-kit studio",
+		"db:push": "drizzle-kit push"
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.13.4",
 		"@hono/standard-validator": "^0.2.2",
 		"@scalar/hono-api-reference": "^0.9.44",
-		"@tieba/db": "workspace:*",
+		"drizzle-orm": "^0.45.2",
 		"effect": "^3.14.11",
 		"hono": "^4.6.8",
 		"hono-openapi": "^1.2.0",
+		"pg": "^8.20.0",
 		"tieba.js": "workspace:*",
 		"zod": "^3",
 		"zod-openapi": "^4"
 	},
 	"devDependencies": {
 		"@types/node": "^24",
+		"@types/pg": "^8.20.0",
+		"drizzle-kit": "^0.31.10",
 		"esbuild": "^0.27.3",
 		"wrangler": "^4"
 	}

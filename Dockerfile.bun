@@ -3,23 +3,25 @@
 FROM oven/bun:1.3.9-alpine AS build
 WORKDIR /app
 
-COPY package.json tsconfig.json ./
+# Build from repository root:
+# docker build -f apps/api/Dockerfile.bun .
+COPY package.json bun.lock bunfig.toml tsconfig.base.json turbo.json ./
+COPY apps/api/package.json apps/api/tsconfig.json apps/api/tsconfig.base.json ./apps/api/
+COPY packages/sdk/package.json packages/sdk/tsconfig*.json packages/sdk/bunfig.toml ./packages/sdk/
 
-# API 子仓库独立构建时，将 monorepo workspace 依赖改为可安装版本
-RUN bun -e "import { readFileSync, writeFileSync } from 'node:fs'; const pkg = JSON.parse(readFileSync('package.json', 'utf8')); if (pkg.dependencies?.['tieba.js'] === 'workspace:*') pkg.dependencies['tieba.js'] = '^3.0.0'; if (pkg.dependencies?.['@tieba/db'] === 'workspace:*') delete pkg.dependencies['@tieba/db']; writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
+RUN bun install --frozen-lockfile
 
-RUN bun install
+COPY apps/api/src ./apps/api/src
+COPY packages/sdk/src ./packages/sdk/src
 
-COPY src ./src
-
-RUN bun run build
+RUN bun run --cwd apps/api build
 
 FROM oven/bun:1.3.9-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --from=build /app/out /app/out
+COPY --from=build /app/apps/api/out /app/out
 
 EXPOSE 8000
 
