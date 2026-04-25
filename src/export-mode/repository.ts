@@ -25,6 +25,7 @@ import {
 import type { TiebaDb } from "../db/index.ts";
 import {
 	exportForumPageTasks,
+	exportJobHistory,
 	exportJobNotifications,
 	exportJobs,
 	exportTargets,
@@ -121,6 +122,18 @@ export interface ExportJobTargetSummary {
 	threadsStored: number;
 }
 
+export interface ExportJobEstimate {
+	remainingForums: number;
+	remainingForumPageTasks: number;
+	remainingThreadTasks: number;
+	remainingTasks: number;
+	elapsedSeconds: number;
+	estimatedRemainingSeconds: number | null;
+	estimatedCompletionAt: Date | null;
+	basedOn: "history" | "progress" | "blended" | "insufficient_data";
+	historySampleSize: number;
+}
+
 export interface ExportJobNotificationSnapshot {
 	jobId: string;
 	jobKey: string;
@@ -135,6 +148,7 @@ export interface ExportJobNotificationSnapshot {
 		subPostsStored: number;
 	};
 	notification: ExportJobNotification;
+	estimate: ExportJobEstimate;
 	errorMessage?: string;
 	targets: ExportJobTargetSummary[];
 }
@@ -162,6 +176,15 @@ function dbLeaseExpiresAt(leaseSeconds: number) {
 function toNumber(value: number | string | null | undefined): number {
 	const num = Number(value ?? 0);
 	return Number.isFinite(num) ? num : 0;
+}
+
+function secondsBetween(start: Date, end: Date): number {
+	return Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
+}
+
+function average(values: number[]): number | null {
+	if (values.length === 0) return null;
+	return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function notificationRecipients(value: unknown): string[] {
@@ -563,6 +586,164 @@ export class ExportRepository {
 		};
 	}
 
+	private async buildJobEstimate(
+		job: {
+			id: string;
+			jobKey: string;
+			forumsTotal: number;
+			forumsDone: number;
+			startedAt: Date;
+		},
+	): Promise<ExportJobEstimate> {
+		const now = new Date();
+		const elapsedSeconds = secondsBetween(job.startedAt, now);
+
+		const [
+			forumPageTotal,
+			forumPageCompleted,
+			forumPageCancelled,
+			threadTaskTotal,
+			threadTaskCompleted,
+			historyRows,
+		] = await Promise.all([
+				this.db
+					.select({ value: count() })
+					.from(exportForumPageTasks)
+					.where(eq(exportForumPageTasks.jobId, job.id)),
+				this.db
+					.select({ value: count() })
+					.from(exportForumPageTasks)
+					.where(
+						and(
+							eq(exportForumPageTasks.jobId, job.id),
+							eq(exportForumPageTasks.status, "completed"),
+						),
+					),
+				this.db
+					.select({ value: count() })
+					.from(exportForumPageTasks)
+					.where(
+						and(
+							eq(exportForumPageTasks.jobId, job.id),
+							eq(exportForumPageTasks.status, "cancelled"),
+						),
+					),
+				this.db
+					.select({ value: count() })
+					.from(exportThreadTasks)
+					.where(eq(exportThreadTasks.jobId, job.id)),
+				this.db
+					.select({ value: count() })
+					.from(exportThreadTasks)
+					.where(
+						and(
+							eq(exportThreadTasks.jobId, job.id),
+							eq(exportThreadTasks.status, "completed"),
+						),
+					),
+				this.db
+					.select({ durationSeconds: exportJobHistory.durationSeconds })
+					.from(exportJobHistory)
+					.where(
+						and(
+							eq(exportJobHistory.jobKey, job.jobKey),
+							eq(exportJobHistory.status, "completed"),
+						),
+					)
+					.orderBy(desc(exportJobHistory.finishedAt))
+					.limit(5),
+			]);
+
+		const forumPageTotalCount = toNumber(forumPageTotal[0]?.value);
+		const forumPageCompletedCount = toNumber(forumPageCompleted[0]?.value);
+		const forumPageCancelledCount = toNumber(forumPageCancelled[0]?.value);
+		const threadTaskTotalCount = toNumber(threadTaskTotal[0]?.value);
+		const threadTaskCompletedCount = toNumber(threadTaskCompleted[0]?.value);
+
+		const effectiveForumPageTotal = Math.max(
+			0,
+			forumPageTotalCount - forumPageCancelledCount,
+		);
+		const remainingForumPageTasks = Math.max(
+			0,
+			effectiveForumPageTotal - forumPageCompletedCount,
+		);
+		const remainingThreadTasks = Math.max(
+			0,
+			threadTaskTotalCount - threadTaskCompletedCount,
+		);
+		const remainingForums = Math.max(0, job.forumsTotal - job.forumsDone);
+
+		const ratios = [
+			job.forumsTotal > 0 ? job.forumsDone / job.forumsTotal : null,
+			effectiveForumPageTotal > 0
+				? forumPageCompletedCount / effectiveForumPageTotal
+				: null,
+			threadTaskTotalCount > 0
+				? threadTaskCompletedCount / threadTaskTotalCount
+				: null,
+		].filter((value): value is number => value !== null && value > 0);
+
+		const historyDurations = historyRows
+			.map((row) => row.durationSeconds)
+			.filter((value) => Number.isFinite(value) && value > 0);
+		const historyAverageSeconds = average(historyDurations);
+		const progressRatio = average(ratios);
+		const progressEstimatedTotalSeconds =
+			progressRatio && progressRatio > 0
+				? elapsedSeconds / progressRatio
+				: null;
+
+		let basedOn: ExportJobEstimate["basedOn"] = "insufficient_data";
+		let estimatedTotalSeconds: number | null = null;
+
+		if (
+			historyAverageSeconds !== null &&
+			progressEstimatedTotalSeconds !== null
+		) {
+			const historyWeight = Math.min(historyDurations.length, 3);
+			estimatedTotalSeconds =
+				(historyAverageSeconds * historyWeight + progressEstimatedTotalSeconds * 2) /
+				(historyWeight + 2);
+			basedOn = "blended";
+		} else if (historyAverageSeconds !== null) {
+			estimatedTotalSeconds = historyAverageSeconds;
+			basedOn = "history";
+		} else if (
+			progressEstimatedTotalSeconds !== null &&
+			progressRatio !== null &&
+			progressRatio >= 0.05
+		) {
+			estimatedTotalSeconds = progressEstimatedTotalSeconds;
+			basedOn = "progress";
+		}
+
+		const roundedEstimatedTotalSeconds =
+			estimatedTotalSeconds === null
+				? null
+				: Math.max(elapsedSeconds, Math.round(estimatedTotalSeconds));
+		const estimatedRemainingSeconds =
+			roundedEstimatedTotalSeconds === null
+				? null
+				: Math.max(0, roundedEstimatedTotalSeconds - elapsedSeconds);
+		const estimatedCompletionAt =
+			estimatedRemainingSeconds === null
+				? null
+				: new Date(now.getTime() + estimatedRemainingSeconds * 1000);
+
+		return {
+			remainingForums,
+			remainingForumPageTasks,
+			remainingThreadTasks,
+			remainingTasks: remainingForumPageTasks + remainingThreadTasks,
+			elapsedSeconds,
+			estimatedRemainingSeconds,
+			estimatedCompletionAt,
+			basedOn,
+			historySampleSize: historyDurations.length,
+		};
+	}
+
 	async ensureJob(config: ExportConfig, instanceId: string): Promise<string> {
 		const [job] = await this.db
 			.insert(exportJobs)
@@ -582,6 +763,10 @@ export class ExportRepository {
 					configHash: config.configHash,
 					name: config.name,
 					status: "running",
+					startedAt: sql`case
+						when ${exportJobs.status} = 'running' then ${exportJobs.startedAt}
+						else now()
+					end`,
 					config: publicJobConfig(config),
 					errorMessage: null,
 					leaseOwner: instanceId,
@@ -1643,6 +1828,7 @@ export class ExportRepository {
 				jobKey: exportJobs.jobKey,
 				jobName: exportJobs.name,
 				status: exportJobs.status,
+				startedAt: exportJobs.startedAt,
 				errorMessage: exportJobs.errorMessage,
 				forumsTotal: exportJobs.forumsTotal,
 				forumsDone: exportJobs.forumsDone,
@@ -1668,6 +1854,13 @@ export class ExportRepository {
 				lastEventSentAt: null,
 			};
 		const state = await this.getJobRunState(jobId);
+		const estimate = await this.buildJobEstimate({
+			id: job.id,
+			jobKey: job.jobKey,
+			forumsTotal: job.forumsTotal,
+			forumsDone: job.forumsDone,
+			startedAt: job.startedAt,
+		});
 		const targets = includeTargets
 			? await this.db
 					.select({
@@ -1696,6 +1889,7 @@ export class ExportRepository {
 				subPostsStored: job.subPostsStored,
 			},
 			notification,
+			estimate,
 			errorMessage: job.errorMessage ?? state.errorMessage,
 			targets,
 		};
@@ -1708,15 +1902,46 @@ export class ExportRepository {
 	): Promise<void> {
 		await this.db.transaction(async (tx) => {
 			await this.refreshJobSummaryWith(tx, jobId);
-			await tx
+			const finishedAt = new Date();
+			const [job] = await tx
 				.update(exportJobs)
 				.set({
 					status,
 					errorMessage: err ? errorMessage(err) : null,
-					finishedAt: new Date(),
-					updatedAt: new Date(),
+					finishedAt,
+					updatedAt: finishedAt,
 				})
-				.where(eq(exportJobs.id, jobId));
+				.where(eq(exportJobs.id, jobId))
+				.returning({
+					id: exportJobs.id,
+					jobKey: exportJobs.jobKey,
+					jobName: exportJobs.name,
+					startedAt: exportJobs.startedAt,
+					finishedAt: exportJobs.finishedAt,
+					forumsTotal: exportJobs.forumsTotal,
+					forumsDone: exportJobs.forumsDone,
+					threadsFound: exportJobs.threadsFound,
+					threadsStored: exportJobs.threadsStored,
+					postsStored: exportJobs.postsStored,
+					subPostsStored: exportJobs.subPostsStored,
+				});
+			if (!job?.finishedAt) return;
+
+			await tx.insert(exportJobHistory).values({
+				jobId: job.id,
+				jobKey: job.jobKey,
+				jobName: job.jobName,
+				status,
+				startedAt: job.startedAt,
+				finishedAt: job.finishedAt,
+				durationSeconds: secondsBetween(job.startedAt, job.finishedAt),
+				forumsTotal: job.forumsTotal,
+				forumsDone: job.forumsDone,
+				threadsFound: job.threadsFound,
+				threadsStored: job.threadsStored,
+				postsStored: job.postsStored,
+				subPostsStored: job.subPostsStored,
+			});
 		});
 	}
 

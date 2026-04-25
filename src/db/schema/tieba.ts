@@ -244,6 +244,42 @@ export const exportJobs = appDbSchema.table(
 	(table) => [uniqueIndex("export_jobs_job_key_idx").on(table.jobKey)],
 );
 
+export const exportJobHistory = appDbSchema.table(
+	"export_job_history",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		jobId: uuid("job_id")
+			.notNull()
+			.references(() => exportJobs.id, { onDelete: "cascade" }),
+		jobKey: text("job_key").notNull(),
+		jobName: text("job_name").notNull(),
+		status: varchar("status", { length: 24 }).notNull(),
+		startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
+			.notNull(),
+		finishedAt: timestamp("finished_at", {
+			mode: "date",
+			withTimezone: true,
+		}).notNull(),
+		durationSeconds: integer("duration_seconds").notNull(),
+		forumsTotal: integer("forums_total").default(0).notNull(),
+		forumsDone: integer("forums_done").default(0).notNull(),
+		threadsFound: integer("threads_found").default(0).notNull(),
+		threadsStored: integer("threads_stored").default(0).notNull(),
+		postsStored: integer("posts_stored").default(0).notNull(),
+		subPostsStored: integer("sub_posts_stored").default(0).notNull(),
+		createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index("export_job_history_job_key_finished_idx").on(
+			table.jobKey,
+			table.finishedAt,
+		),
+		index("export_job_history_job_id_idx").on(table.jobId),
+	],
+);
+
 export const exportJobNotifications = appDbSchema.table(
 	"export_job_notifications",
 	{

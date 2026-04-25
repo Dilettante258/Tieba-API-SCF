@@ -29,6 +29,17 @@ interface ExportMailEventPayload {
 		postsStored: number;
 		subPostsStored: number;
 	};
+	estimate: {
+		remainingForums: number;
+		remainingForumPageTasks: number;
+		remainingThreadTasks: number;
+		remainingTasks: number;
+		elapsedSeconds: number;
+		estimatedRemainingSeconds: number | null;
+		estimatedCompletionAt: string | null;
+		basedOn: "history" | "progress" | "blended" | "insufficient_data";
+		historySampleSize: number;
+	};
 	targets?: ExportMailTargetSummary[];
 	errorMessage?: string;
 	occurredAt: string;
@@ -103,6 +114,11 @@ export class ExportMailNotifier {
 							: snapshot.status,
 				recipients: notification.recipients,
 				summary: snapshot.summary,
+				estimate: {
+					...snapshot.estimate,
+					estimatedCompletionAt:
+						snapshot.estimate.estimatedCompletionAt?.toISOString() ?? null,
+				},
 				...(snapshot.errorMessage
 					? { errorMessage: snapshot.errorMessage }
 					: {}),
