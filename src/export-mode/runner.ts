@@ -28,6 +28,7 @@ import {
 	type RateLimiter,
 	runLimited,
 } from "../lib/rate-limit.ts";
+import { ExportMailNotifier } from "./mail-notifier.ts";
 import { setupClient } from "../lib/sdk.ts";
 import {
 	contentToText,
@@ -505,6 +506,7 @@ export async function runExportMode(): Promise<void> {
 	const repo = new ExportRepository(client.db);
 	const limiter = await makeRateLimiter(config.rate.minIntervalMs);
 	const instanceId = getInstanceId();
+	const notifier = new ExportMailNotifier(repo, instanceId);
 	let stopping = false;
 	const stop = () => {
 		stopping = true;
@@ -515,11 +517,13 @@ export async function runExportMode(): Promise<void> {
 
 	try {
 		const jobId = await repo.ensureJob(config, instanceId);
+		await repo.ensureJobNotification(jobId, config.notify);
 		const targetById = new Map<number, ExportTargetConfig>();
 		for (const target of config.targets) {
 			const targetId = await repo.ensureTarget(jobId, target);
 			targetById.set(targetId, target);
 		}
+		await notifier.notifyStarted(jobId);
 
 		const ctx: CrawlContext = {
 			jobId,
@@ -557,6 +561,7 @@ export async function runExportMode(): Promise<void> {
 					continue;
 				}
 				await consumeThreadTask(task, target, ctx);
+				await notifier.notifyProgress(jobId);
 			}
 			if (consumedTask) continue;
 
@@ -582,6 +587,7 @@ export async function runExportMode(): Promise<void> {
 					continue;
 				}
 				await scanForumPageTask(target, pageTask, ctx);
+				await notifier.notifyProgress(jobId);
 			}
 			if (scannedPage) continue;
 
@@ -590,10 +596,12 @@ export async function runExportMode(): Promise<void> {
 			if (state.failed) {
 				const message = state.errorMessage ?? "Export job failed";
 				await repo.finishJob(jobId, "failed", message);
+				await notifier.notifyFailed(jobId);
 				throw new Error(message);
 			}
 			if (state.completed) {
 				await repo.finishJob(jobId, "completed");
+				await notifier.notifyCompleted(jobId);
 				break;
 			}
 

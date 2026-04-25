@@ -25,6 +25,7 @@ import {
 import type { TiebaDb } from "../db/index.ts";
 import {
 	exportForumPageTasks,
+	exportJobNotifications,
 	exportJobs,
 	exportTargets,
 	exportThreadTasks,
@@ -34,7 +35,11 @@ import {
 	tiebaThreads,
 	tiebaUsers,
 } from "../db/schema/index.ts";
-import type { ExportConfig, ExportTargetConfig } from "./config.ts";
+import type {
+	ExportConfig,
+	ExportNotifyConfig,
+	ExportTargetConfig,
+} from "./config.ts";
 
 type ForumInsert = typeof tiebaForums.$inferInsert;
 type UserInsert = typeof tiebaUsers.$inferInsert;
@@ -91,6 +96,49 @@ export interface JobRunState {
 	errorMessage?: string;
 }
 
+export interface ExportJobNotification {
+	enabled: boolean;
+	recipients: string[];
+	progressIntervalMinutes: number;
+	startedSentAt: Date | null;
+	completedSentAt: Date | null;
+	failedSentAt: Date | null;
+	lastProgressSentAt: Date | null;
+	lastEventSentAt: Date | null;
+}
+
+export interface ExportJobNotificationUpdate {
+	enabled?: boolean;
+	recipients?: string[];
+	progressIntervalMinutes?: number;
+}
+
+export interface ExportJobTargetSummary {
+	forumName: string;
+	status: string;
+	pagesScanned: number;
+	threadsFound: number;
+	threadsStored: number;
+}
+
+export interface ExportJobNotificationSnapshot {
+	jobId: string;
+	jobKey: string;
+	jobName: string;
+	status: string;
+	summary: {
+		forumsTotal: number;
+		forumsDone: number;
+		threadsFound: number;
+		threadsStored: number;
+		postsStored: number;
+		subPostsStored: number;
+	};
+	notification: ExportJobNotification;
+	errorMessage?: string;
+	targets: ExportJobTargetSummary[];
+}
+
 function dedupeById<T extends { id: string }>(rows: T[]): T[] {
 	const map = new Map<string, T>();
 	for (const row of rows) map.set(row.id, row);
@@ -114,6 +162,18 @@ function dbLeaseExpiresAt(leaseSeconds: number) {
 function toNumber(value: number | string | null | undefined): number {
 	const num = Number(value ?? 0);
 	return Number.isFinite(num) ? num : 0;
+}
+
+function notificationRecipients(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+
+	const seen = new Set<string>();
+	for (const item of value) {
+		if (typeof item !== "string") continue;
+		const email = item.trim();
+		if (email) seen.add(email);
+	}
+	return Array.from(seen);
 }
 
 function publicJobConfig(config: ExportConfig): Record<string, unknown> {
@@ -467,6 +527,39 @@ export class ExportRepository {
 				failedTask?.lastError ??
 				latestTargetError?.errorMessage ??
 				undefined,
+		};
+	}
+
+	private async getJobNotificationWith(
+		db: Pick<TiebaDb, "select">,
+		jobId: string,
+	): Promise<ExportJobNotification | null> {
+		const [row] = await db
+			.select({
+				enabled: exportJobNotifications.enabled,
+				recipients: exportJobNotifications.recipients,
+				progressIntervalMinutes:
+					exportJobNotifications.progressIntervalMinutes,
+				startedSentAt: exportJobNotifications.startedSentAt,
+				completedSentAt: exportJobNotifications.completedSentAt,
+				failedSentAt: exportJobNotifications.failedSentAt,
+				lastProgressSentAt: exportJobNotifications.lastProgressSentAt,
+				lastEventSentAt: exportJobNotifications.lastEventSentAt,
+			})
+			.from(exportJobNotifications)
+			.where(eq(exportJobNotifications.jobId, jobId))
+			.limit(1);
+
+		if (!row) return null;
+		return {
+			enabled: row.enabled,
+			recipients: notificationRecipients(row.recipients),
+			progressIntervalMinutes: row.progressIntervalMinutes,
+			startedSentAt: row.startedSentAt,
+			completedSentAt: row.completedSentAt,
+			failedSentAt: row.failedSentAt,
+			lastProgressSentAt: row.lastProgressSentAt,
+			lastEventSentAt: row.lastEventSentAt,
 		};
 	}
 
@@ -1348,6 +1441,264 @@ export class ExportRepository {
 
 	async getJobRunState(jobId: string): Promise<JobRunState> {
 		return this.db.transaction((tx) => this.getJobRunStateWith(tx, jobId));
+	}
+
+	async ensureJobNotification(
+		jobId: string,
+		notify: ExportNotifyConfig,
+	): Promise<ExportJobNotification> {
+		await this.db
+			.insert(exportJobNotifications)
+			.values({
+				jobId,
+				enabled: notify.enabled,
+				recipients: notify.recipients,
+				progressIntervalMinutes: notify.progressIntervalMinutes,
+			})
+			.onConflictDoNothing({
+				target: exportJobNotifications.jobId,
+			});
+
+		const record = await this.getJobNotification(jobId);
+		if (!record) {
+			throw new Error(`Missing job notification config for job ${jobId}`);
+		}
+		return record;
+	}
+
+	async getJobNotification(jobId: string): Promise<ExportJobNotification | null> {
+		return this.db.transaction((tx) => this.getJobNotificationWith(tx, jobId));
+	}
+
+	async updateJobNotification(
+		jobId: string,
+		update: ExportJobNotificationUpdate,
+	): Promise<ExportJobNotification | null> {
+		const [job] = await this.db
+			.select({ id: exportJobs.id })
+			.from(exportJobs)
+			.where(eq(exportJobs.id, jobId))
+			.limit(1);
+		if (!job) return null;
+
+		const current =
+			(await this.getJobNotification(jobId)) ?? {
+				enabled: false,
+				recipients: [],
+				progressIntervalMinutes: 30,
+				startedSentAt: null,
+				completedSentAt: null,
+				failedSentAt: null,
+				lastProgressSentAt: null,
+				lastEventSentAt: null,
+			};
+		const recipients =
+			update.recipients !== undefined
+				? notificationRecipients(update.recipients)
+				: current.recipients;
+		const enabled =
+			update.enabled !== undefined
+				? update.enabled
+				: recipients.length > 0
+					? current.enabled
+					: false;
+		const progressIntervalMinutes =
+			update.progressIntervalMinutes ?? current.progressIntervalMinutes;
+
+		await this.db
+			.insert(exportJobNotifications)
+			.values({
+				jobId,
+				enabled,
+				recipients,
+				progressIntervalMinutes,
+				startedSentAt: current.startedSentAt,
+				completedSentAt: current.completedSentAt,
+				failedSentAt: current.failedSentAt,
+				lastProgressSentAt: current.lastProgressSentAt,
+				lastEventSentAt: current.lastEventSentAt,
+			})
+			.onConflictDoUpdate({
+				target: exportJobNotifications.jobId,
+				set: {
+					enabled,
+					recipients,
+					progressIntervalMinutes,
+					updatedAt: new Date(),
+				},
+			});
+
+		return this.getJobNotification(jobId);
+	}
+
+	async claimNotificationSend(
+		jobId: string,
+		eventType: "started" | "progress" | "completed" | "failed",
+		instanceId: string,
+		progressIntervalMinutes: number,
+		leaseSeconds = 60,
+	): Promise<boolean> {
+		const now = new Date();
+		const progressCutoff = new Date(
+			now.getTime() - progressIntervalMinutes * 60_000,
+		);
+
+		const [claimed] = await this.db
+			.update(exportJobNotifications)
+			.set({
+				sendLeaseOwner: instanceId,
+				sendLeaseType: eventType,
+				sendLeaseExpiresAt: dbLeaseExpiresAt(leaseSeconds),
+				updatedAt: now,
+			})
+			.where(
+				and(
+					eq(exportJobNotifications.jobId, jobId),
+					or(
+						isNull(exportJobNotifications.sendLeaseExpiresAt),
+						lt(exportJobNotifications.sendLeaseExpiresAt, now),
+					),
+					...(
+						eventType === "started"
+							? [isNull(exportJobNotifications.startedSentAt)]
+							: eventType === "completed"
+								? [isNull(exportJobNotifications.completedSentAt)]
+								: eventType === "failed"
+									? [isNull(exportJobNotifications.failedSentAt)]
+									: [
+											or(
+												isNull(exportJobNotifications.lastProgressSentAt),
+												lt(
+													exportJobNotifications.lastProgressSentAt,
+													progressCutoff,
+												),
+											),
+										]
+					),
+				),
+			)
+			.returning({ jobId: exportJobNotifications.jobId });
+
+		return !!claimed;
+	}
+
+	async releaseNotificationClaim(
+		jobId: string,
+		eventType: "started" | "progress" | "completed" | "failed",
+		instanceId: string,
+	): Promise<void> {
+		await this.db
+			.update(exportJobNotifications)
+			.set({
+				sendLeaseOwner: null,
+				sendLeaseType: null,
+				sendLeaseExpiresAt: null,
+				updatedAt: new Date(),
+			})
+			.where(
+				and(
+					eq(exportJobNotifications.jobId, jobId),
+					eq(exportJobNotifications.sendLeaseOwner, instanceId),
+					eq(exportJobNotifications.sendLeaseType, eventType),
+				),
+			);
+	}
+
+	async markNotificationSent(
+		jobId: string,
+		eventType: "started" | "progress" | "completed" | "failed",
+		instanceId: string,
+		at: Date = new Date(),
+	): Promise<void> {
+		await this.db
+			.update(exportJobNotifications)
+			.set({
+				...(eventType === "started" ? { startedSentAt: at } : {}),
+				...(eventType === "completed" ? { completedSentAt: at } : {}),
+				...(eventType === "failed" ? { failedSentAt: at } : {}),
+				lastEventSentAt: at,
+				...(eventType === "progress" ? { lastProgressSentAt: at } : {}),
+				sendLeaseOwner: null,
+				sendLeaseType: null,
+				sendLeaseExpiresAt: null,
+				updatedAt: at,
+			})
+			.where(
+				and(
+					eq(exportJobNotifications.jobId, jobId),
+					eq(exportJobNotifications.sendLeaseOwner, instanceId),
+					eq(exportJobNotifications.sendLeaseType, eventType),
+				),
+			);
+	}
+
+	async getJobNotificationSnapshot(
+		jobId: string,
+		includeTargets = false,
+	): Promise<ExportJobNotificationSnapshot | null> {
+		await this.refreshJobSummary(jobId);
+		const [job] = await this.db
+			.select({
+				id: exportJobs.id,
+				jobKey: exportJobs.jobKey,
+				jobName: exportJobs.name,
+				status: exportJobs.status,
+				errorMessage: exportJobs.errorMessage,
+				forumsTotal: exportJobs.forumsTotal,
+				forumsDone: exportJobs.forumsDone,
+				threadsFound: exportJobs.threadsFound,
+				threadsStored: exportJobs.threadsStored,
+				postsStored: exportJobs.postsStored,
+				subPostsStored: exportJobs.subPostsStored,
+			})
+			.from(exportJobs)
+			.where(eq(exportJobs.id, jobId))
+			.limit(1);
+		if (!job) return null;
+
+		const notification =
+			(await this.getJobNotification(jobId)) ?? {
+				enabled: false,
+				recipients: [],
+				progressIntervalMinutes: 30,
+				startedSentAt: null,
+				completedSentAt: null,
+				failedSentAt: null,
+				lastProgressSentAt: null,
+				lastEventSentAt: null,
+			};
+		const state = await this.getJobRunState(jobId);
+		const targets = includeTargets
+			? await this.db
+					.select({
+						forumName: exportTargets.forumName,
+						status: exportTargets.status,
+						pagesScanned: exportTargets.pagesScanned,
+						threadsFound: exportTargets.threadsFound,
+						threadsStored: exportTargets.threadsStored,
+					})
+					.from(exportTargets)
+					.where(eq(exportTargets.jobId, jobId))
+					.orderBy(asc(exportTargets.id))
+			: [];
+
+		return {
+			jobId: job.id,
+			jobKey: job.jobKey,
+			jobName: job.jobName,
+			status: job.status,
+			summary: {
+				forumsTotal: job.forumsTotal,
+				forumsDone: job.forumsDone,
+				threadsFound: job.threadsFound,
+				threadsStored: job.threadsStored,
+				postsStored: job.postsStored,
+				subPostsStored: job.subPostsStored,
+			},
+			notification,
+			errorMessage: job.errorMessage ?? state.errorMessage,
+			targets,
+		};
 	}
 
 	async finishJob(

@@ -75,6 +75,11 @@ function createExampleConfig(): ExportConfigExample {
 			maxScanAttempts: 5,
 			idlePollMs: 5000,
 		},
+		notify: {
+			recipients: ["ops@example.com", "owner@example.com"],
+			progressIntervalMinutes: 30,
+			enabled: true,
+		},
 		targets: [
 			{
 				forumName: "v",

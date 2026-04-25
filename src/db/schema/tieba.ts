@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
 	boolean,
 	char,
@@ -241,6 +242,57 @@ export const exportJobs = pgTable(
 			.notNull(),
 	},
 	(table) => [uniqueIndex("export_jobs_job_key_idx").on(table.jobKey)],
+);
+
+export const exportJobNotifications = pgTable(
+	"export_job_notifications",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		jobId: uuid("job_id")
+			.notNull()
+			.references(() => exportJobs.id, { onDelete: "cascade" }),
+		enabled: boolean("enabled").default(false).notNull(),
+		recipients: jsonb("recipients")
+			.$type<string[]>()
+			.default(sql`'[]'::jsonb`)
+			.notNull(),
+		progressIntervalMinutes: integer("progress_interval_minutes")
+			.default(30)
+			.notNull(),
+		startedSentAt: timestamp("started_sent_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		completedSentAt: timestamp("completed_sent_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		failedSentAt: timestamp("failed_sent_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		lastProgressSentAt: timestamp("last_progress_sent_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		sendLeaseOwner: text("send_lease_owner"),
+		sendLeaseType: varchar("send_lease_type", { length: 24 }),
+		sendLeaseExpiresAt: timestamp("send_lease_expires_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		lastEventSentAt: timestamp("last_event_sent_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [uniqueIndex("export_job_notifications_job_idx").on(table.jobId)],
 );
 
 export const exportTargets = pgTable(

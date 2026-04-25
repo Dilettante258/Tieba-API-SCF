@@ -19,6 +19,7 @@ const DEFAULT_CLAIM_BATCH_SIZE = 1;
 const DEFAULT_MAX_TASK_ATTEMPTS = 5;
 const DEFAULT_MAX_SCAN_ATTEMPTS = 5;
 const DEFAULT_IDLE_POLL_MS = 5_000;
+const DEFAULT_NOTIFY_PROGRESS_INTERVAL_MINUTES = 30;
 
 export const exportTargetFileConfigSchema = z
 	.object({
@@ -205,6 +206,14 @@ export const exportWorkerFileConfigSchema = z
 	.passthrough()
 	.describe("多容器 worker 调度参数。");
 
+export const exportNotifyFileConfigSchema = z
+	.object({
+		recipients: z.array(z.string().email()).optional(),
+		progressIntervalMinutes: z.number().int().positive().optional(),
+		enabled: z.boolean().optional(),
+	})
+	.passthrough();
+
 export const exportConfigFileSchema = z
 	.object({
 		name: z.string().min(1).optional().describe("导出任务展示名。"),
@@ -229,6 +238,7 @@ export const exportConfigFileSchema = z
 			.describe("需要导出的贴吧与时间范围。"),
 		rate: exportRateFileConfigSchema.optional(),
 		crawl: exportCrawlFileConfigSchema.optional(),
+		notify: exportNotifyFileConfigSchema.optional(),
 		database: z
 			.record(z.string(), z.unknown())
 			.optional()
@@ -287,6 +297,12 @@ export const exportWorkerConfigSchema = z
 	})
 	.describe("运行时归一化后的 worker 配置。");
 
+export const exportNotifyConfigSchema = z.object({
+	recipients: z.array(z.string().email()),
+	progressIntervalMinutes: z.number().int().positive(),
+	enabled: z.boolean(),
+});
+
 export const exportConfigSchema = z
 	.object({
 		name: z.string().min(1).describe("导出任务展示名。"),
@@ -297,6 +313,7 @@ export const exportConfigSchema = z
 		targets: z.array(exportTargetConfigSchema).min(1).describe("归一化后的目标列表。"),
 		rate: exportRateConfigSchema,
 		worker: exportWorkerConfigSchema,
+		notify: exportNotifyConfigSchema,
 		raw: z.record(z.string(), z.unknown()).describe("原始输入配置，便于排查。"),
 	})
 	.describe("导出模式运行时配置。");
@@ -304,6 +321,7 @@ export const exportConfigSchema = z
 export type ExportTargetConfig = z.infer<typeof exportTargetConfigSchema>;
 export type ExportRateConfig = z.infer<typeof exportRateConfigSchema>;
 export type ExportWorkerConfig = z.infer<typeof exportWorkerConfigSchema>;
+export type ExportNotifyConfig = z.infer<typeof exportNotifyConfigSchema>;
 export type ExportConfig = z.infer<typeof exportConfigSchema>;
 export type ExportConfigFile = z.infer<typeof exportConfigFileSchema>;
 
@@ -344,6 +362,18 @@ function readPositiveInteger(value: unknown, fallback: number): number {
 function readOptionalPositiveInteger(value: unknown): number | undefined {
 	if (value === undefined || value === null || value === "") return undefined;
 	return readPositiveInteger(value, 1);
+}
+
+function readEmailList(value: unknown): string[] {
+	if (!Array.isArray(value)) return [];
+
+	const seen = new Set<string>();
+	for (const item of value) {
+		if (typeof item !== "string") continue;
+		const email = item.trim();
+		if (email) seen.add(email);
+	}
+	return Array.from(seen);
 }
 
 function parseDate(value: unknown, endOfDay: boolean): Date {
@@ -530,6 +560,7 @@ export async function loadExportConfig(): Promise<ExportConfig> {
 	const raw = rawConfigSchema.parse(await readRawConfig());
 	const rate = isRecord(raw.rate) ? raw.rate : {};
 	const workerRaw = isRecord(raw.worker) ? raw.worker : {};
+	const notifyRaw = isRecord(raw.notify) ? raw.notify : {};
 	const targetsFromEnv = process.env.EXPORT_TARGETS
 		? (JSON.parse(process.env.EXPORT_TARGETS) as unknown)
 		: undefined;
@@ -603,6 +634,18 @@ export async function loadExportConfig(): Promise<ExportConfig> {
 
 	const name =
 		readString(raw.name, process.env.EXPORT_JOB_NAME) ?? "tieba-export";
+	const notifyRecipients = readEmailList(notifyRaw.recipients);
+	const notify = exportNotifyConfigSchema.parse({
+		recipients: notifyRecipients,
+		progressIntervalMinutes: readPositiveInteger(
+			notifyRaw.progressIntervalMinutes,
+			DEFAULT_NOTIFY_PROGRESS_INTERVAL_MINUTES,
+		),
+		enabled:
+			notifyRecipients.length > 0
+				? readBoolean(notifyRaw.enabled, true)
+				: readBoolean(notifyRaw.enabled, false),
+	});
 	const targets = rawTargets.map((target) => {
 		if (!isRecord(target)) {
 			throw new Error("Export targets must be objects");
@@ -646,6 +689,7 @@ export async function loadExportConfig(): Promise<ExportConfig> {
 		targets,
 		rate: rateConfig,
 		worker,
+		notify,
 		raw,
 	});
 }

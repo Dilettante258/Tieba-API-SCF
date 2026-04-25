@@ -9,6 +9,8 @@ import { Effect } from "effect";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod/v4";
+import { getDb } from "../db/index.ts";
+import { ExportRepository } from "../export-mode/repository.ts";
 import { MethodEnum, UserIdResolver } from "../utils/format.ts";
 
 const userPostsQuery = z
@@ -68,6 +70,27 @@ const threadPostsQuery = z
 			.describe("是否包含楼中楼：true/false"),
 	})
 	.describe("单帖导出参数");
+
+const exportJobNotificationParams = z.object({
+	jobId: z.string().uuid().describe("瀵煎嚭浠诲姟 jobId"),
+});
+
+const exportJobNotificationBody = z
+	.object({
+		enabled: z.boolean().optional(),
+		recipients: z.array(z.string().email()).optional(),
+		progressIntervalMinutes: z.number().int().positive().optional(),
+	})
+	.refine(
+		(body) =>
+			body.enabled !== undefined ||
+			body.recipients !== undefined ||
+			body.progressIntervalMinutes !== undefined,
+		{
+			message:
+				"enabled, recipients, progressIntervalMinutes at least one is required",
+		},
+	);
 
 const TEXT_CONTENT_TYPES = new Set([0, 1, 4, 9, 18, 27, 40]);
 
@@ -493,6 +516,41 @@ export const exportRoute = new Hono()
 						}),
 					});
 				}
+			});
+		},
+	)
+	.patch(
+		"/jobs/:jobId/notifications",
+		describeRoute({
+			tags: ["export"],
+			summary: "更新导出任务通知配置",
+			description: "更新导出任务的通知开关、收件人和进度通知间隔。",
+			responses: {
+				200: {
+					description: "更新后的通知配置。",
+				},
+				404: {
+					description: "任务不存在。",
+				},
+			},
+		}),
+		zValidator("param", exportJobNotificationParams),
+		zValidator("json", exportJobNotificationBody),
+		async (c) => {
+			const { jobId } = c.req.valid("param");
+			const body = c.req.valid("json");
+			const repo = new ExportRepository(getDb());
+			const notification = await repo.updateJobNotification(jobId, body);
+
+			if (!notification) {
+				return c.json({ message: "export job not found" }, 404);
+			}
+
+			return c.json({
+				jobId,
+				...notification,
+				lastProgressSentAt: notification.lastProgressSentAt?.toISOString() ?? null,
+				lastEventSentAt: notification.lastEventSentAt?.toISOString() ?? null,
 			});
 		},
 	);
