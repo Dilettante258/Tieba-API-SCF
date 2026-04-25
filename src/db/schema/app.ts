@@ -1,13 +1,13 @@
 import {
 	boolean,
 	integer,
-	pgTable,
 	primaryKey,
 	text,
 	timestamp,
 } from "drizzle-orm/pg-core";
+import { appDbSchema } from "./shared.ts";
 
-export const users = pgTable("user", {
+export const users = appDbSchema.table("user", {
 	id: text("id")
 		.primaryKey()
 		.$defaultFn(() => crypto.randomUUID()),
@@ -17,7 +17,7 @@ export const users = pgTable("user", {
 	image: text("image"),
 });
 
-export const accounts = pgTable(
+export const accounts = appDbSchema.table(
 	"account",
 	{
 		userId: text("userId")
@@ -43,7 +43,7 @@ export const accounts = pgTable(
 	],
 );
 
-export const sessions = pgTable("session", {
+export const sessions = appDbSchema.table("session", {
 	sessionToken: text("sessionToken").primaryKey(),
 	userId: text("userId")
 		.notNull()
@@ -51,7 +51,7 @@ export const sessions = pgTable("session", {
 	expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-export const verificationTokens = pgTable(
+export const verificationTokens = appDbSchema.table(
 	"verificationToken",
 	{
 		identifier: text("identifier").notNull(),
@@ -67,7 +67,7 @@ export const verificationTokens = pgTable(
 	],
 );
 
-export const authenticators = pgTable(
+export const authenticators = appDbSchema.table(
 	"authenticator",
 	{
 		credentialID: text("credentialID").notNull().unique(),

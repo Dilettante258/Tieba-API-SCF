@@ -6,7 +6,6 @@ import {
 	index,
 	integer,
 	jsonb,
-	pgTable,
 	serial,
 	smallint,
 	text,
@@ -15,8 +14,9 @@ import {
 	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
+import { appDbSchema } from "./shared.ts";
 
-export const userPostTable = pgTable("userPost", {
+export const userPostTable = appDbSchema.table("userPost", {
 	uid: char({ length: 10 }).notNull(),
 	forumId: integer().notNull(),
 	forumName: varchar({ length: 32 }).notNull(),
@@ -30,7 +30,7 @@ export const userPostTable = pgTable("userPost", {
 	pgRecordTime: date().defaultNow().notNull(),
 });
 
-export const postTable = pgTable("post", {
+export const postTable = appDbSchema.table("post", {
 	forumId: integer().notNull(),
 	postId: varchar({ length: 12 }).notNull(),
 	id: varchar({ length: 12 }).primaryKey().notNull(),
@@ -45,7 +45,7 @@ export const postTable = pgTable("post", {
 	pgRecordTime: date().defaultNow().notNull(),
 });
 
-export const subPostTable = pgTable("subPost", {
+export const subPostTable = appDbSchema.table("subPost", {
 	postId: varchar({ length: 12 }).notNull(),
 	id: varchar({ length: 12 }).primaryKey().notNull(),
 	time: timestamp().notNull(),
@@ -56,12 +56,12 @@ export const subPostTable = pgTable("subPost", {
 	pgRecordTime: date().defaultNow().notNull(),
 });
 
-export const forumKeyTable = pgTable("forumKey", {
+export const forumKeyTable = appDbSchema.table("forumKey", {
 	id: integer().primaryKey().notNull(),
 	name: varchar({ length: 32 }).notNull(),
 });
 
-export const forumMemberTable = pgTable("forumMember", {
+export const forumMemberTable = appDbSchema.table("forumMember", {
 	forumId: integer().notNull(),
 	portrait: varchar({ length: 36 }).notNull(),
 	username: varchar({ length: 32 }),
@@ -75,7 +75,7 @@ export const forumMemberTable = pgTable("forumMember", {
  * lease 过期时间与断点页字段，让多个 Docker 容器通过同一个 PostgreSQL 协同。
  * schema 层只描述持久化形状；具体 claim/heartbeat/retry 状态机放在 Repository。
  */
-export const tiebaForums = pgTable(
+export const tiebaForums = appDbSchema.table(
 	"tieba_forums",
 	{
 		id: text("id").primaryKey(),
@@ -91,7 +91,7 @@ export const tiebaForums = pgTable(
 	(table) => [uniqueIndex("tieba_forums_name_idx").on(table.name)],
 );
 
-export const tiebaUsers = pgTable("tieba_users", {
+export const tiebaUsers = appDbSchema.table("tieba_users", {
 	id: text("id").primaryKey(),
 	name: text("name"),
 	nameShow: text("name_show"),
@@ -108,7 +108,7 @@ export const tiebaUsers = pgTable("tieba_users", {
 		.notNull(),
 });
 
-export const tiebaThreads = pgTable(
+export const tiebaThreads = appDbSchema.table(
 	"tieba_threads",
 	{
 		id: text("id").primaryKey(),
@@ -152,7 +152,7 @@ export const tiebaThreads = pgTable(
 	],
 );
 
-export const tiebaPosts = pgTable(
+export const tiebaPosts = appDbSchema.table(
 	"tieba_posts",
 	{
 		id: text("id").primaryKey(),
@@ -183,7 +183,7 @@ export const tiebaPosts = pgTable(
 	],
 );
 
-export const tiebaSubPosts = pgTable(
+export const tiebaSubPosts = appDbSchema.table(
 	"tieba_sub_posts",
 	{
 		id: text("id").primaryKey(),
@@ -212,7 +212,7 @@ export const tiebaSubPosts = pgTable(
 	],
 );
 
-export const exportJobs = pgTable(
+export const exportJobs = appDbSchema.table(
 	"export_jobs",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
@@ -244,7 +244,7 @@ export const exportJobs = pgTable(
 	(table) => [uniqueIndex("export_jobs_job_key_idx").on(table.jobKey)],
 );
 
-export const exportJobNotifications = pgTable(
+export const exportJobNotifications = appDbSchema.table(
 	"export_job_notifications",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
@@ -295,7 +295,7 @@ export const exportJobNotifications = pgTable(
 	(table) => [uniqueIndex("export_job_notifications_job_idx").on(table.jobId)],
 );
 
-export const exportTargets = pgTable(
+export const exportTargets = appDbSchema.table(
 	"export_targets",
 	{
 		id: serial("id").primaryKey(),
@@ -353,7 +353,7 @@ export const exportTargets = pgTable(
 	],
 );
 
-export const exportForumPageTasks = pgTable(
+export const exportForumPageTasks = appDbSchema.table(
 	"export_forum_page_tasks",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
@@ -406,7 +406,7 @@ export const exportForumPageTasks = pgTable(
 	],
 );
 
-export const exportThreadTasks = pgTable(
+export const exportThreadTasks = appDbSchema.table(
 	"export_thread_tasks",
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
