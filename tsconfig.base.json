@@ -13,6 +13,10 @@
 		"declarationMap": true,
 		"sourceMap": true,
 		"rewriteRelativeImportExtensions": true,
-		"allowImportingTsExtensions": true
+		"allowImportingTsExtensions": true,
+		"types": [
+			"hono",
+			"node"
+		],
 	}
 }

@@ -7,6 +7,7 @@
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
 		"export": "bun src/index.ts --export",
+		"export:config": "bun scripts/generate-export-config.ts",
 		"build": "bun build ./src/index.ts --outdir=out --target=bun",
 		"build:node": "rm -rf out && esbuild ./src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=out/index.js",
 		"build:worker": "node scripts/build-worker.mjs",

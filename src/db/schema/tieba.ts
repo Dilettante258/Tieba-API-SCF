@@ -67,6 +67,13 @@ export const forumMemberTable = pgTable("forumMember", {
 	nickname: varchar({ length: 32 }).notNull(),
 });
 
+/**
+ * `tieba_*` 内容表保存最终爬取结果，主键来自贴吧自身 id，写入时必须幂等。
+ * `export_*` 表保存导出任务的调度状态、进度 counters 与失败信息。
+ * 后续生产者-消费者版本会在 export 表族里补充 thread task、lease owner、
+ * lease 过期时间与断点页字段，让多个 Docker 容器通过同一个 PostgreSQL 协同。
+ * schema 层只描述持久化形状；具体 claim/heartbeat/retry 状态机放在 Repository。
+ */
 export const tiebaForums = pgTable(
 	"tieba_forums",
 	{
@@ -204,26 +211,37 @@ export const tiebaSubPosts = pgTable(
 	],
 );
 
-export const exportJobs = pgTable("export_jobs", {
-	id: uuid("id").defaultRandom().primaryKey(),
-	name: text("name").notNull(),
-	status: varchar("status", { length: 24 }).default("pending").notNull(),
-	config: jsonb("config").$type<Record<string, unknown>>().notNull(),
-	errorMessage: text("error_message"),
-	forumsTotal: integer("forums_total").default(0).notNull(),
-	forumsDone: integer("forums_done").default(0).notNull(),
-	threadsFound: integer("threads_found").default(0).notNull(),
-	threadsStored: integer("threads_stored").default(0).notNull(),
-	postsStored: integer("posts_stored").default(0).notNull(),
-	subPostsStored: integer("sub_posts_stored").default(0).notNull(),
-	startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
-		.defaultNow()
-		.notNull(),
-	finishedAt: timestamp("finished_at", { mode: "date", withTimezone: true }),
-	updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
-		.defaultNow()
-		.notNull(),
-});
+export const exportJobs = pgTable(
+	"export_jobs",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		jobKey: text("job_key").notNull(),
+		configHash: text("config_hash").notNull(),
+		name: text("name").notNull(),
+		status: varchar("status", { length: 24 }).default("pending").notNull(),
+		config: jsonb("config").$type<Record<string, unknown>>().notNull(),
+		errorMessage: text("error_message"),
+		leaseOwner: text("lease_owner"),
+		heartbeatAt: timestamp("heartbeat_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		forumsTotal: integer("forums_total").default(0).notNull(),
+		forumsDone: integer("forums_done").default(0).notNull(),
+		threadsFound: integer("threads_found").default(0).notNull(),
+		threadsStored: integer("threads_stored").default(0).notNull(),
+		postsStored: integer("posts_stored").default(0).notNull(),
+		subPostsStored: integer("sub_posts_stored").default(0).notNull(),
+		startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		finishedAt: timestamp("finished_at", { mode: "date", withTimezone: true }),
+		updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [uniqueIndex("export_jobs_job_key_idx").on(table.jobKey)],
+);
 
 export const exportTargets = pgTable(
 	"export_targets",
@@ -232,6 +250,7 @@ export const exportTargets = pgTable(
 		jobId: uuid("job_id")
 			.notNull()
 			.references(() => exportJobs.id, { onDelete: "cascade" }),
+		targetKey: text("target_key").notNull(),
 		forumName: text("forum_name").notNull(),
 		forumId: text("forum_id"),
 		startTime: timestamp("start_time", {
@@ -243,6 +262,20 @@ export const exportTargets = pgTable(
 			withTimezone: true,
 		}).notNull(),
 		status: varchar("status", { length: 24 }).default("pending").notNull(),
+		scanStatus: varchar("scan_status", { length: 24 })
+			.default("pending")
+			.notNull(),
+		scanAttempts: integer("scan_attempts").default(0).notNull(),
+		nextForumPage: integer("next_forum_page").default(1).notNull(),
+		scanLeaseOwner: text("scan_lease_owner"),
+		scanLeaseExpiresAt: timestamp("scan_lease_expires_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		scanCompletedAt: timestamp("scan_completed_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
 		pagesScanned: integer("pages_scanned").default(0).notNull(),
 		threadsFound: integer("threads_found").default(0).notNull(),
 		threadsStored: integer("threads_stored").default(0).notNull(),
@@ -258,5 +291,120 @@ export const exportTargets = pgTable(
 			.defaultNow()
 			.notNull(),
 	},
-	(table) => [index("export_targets_job_idx").on(table.jobId)],
+	(table) => [
+		index("export_targets_job_idx").on(table.jobId),
+		index("export_targets_scan_idx").on(table.jobId, table.scanStatus),
+		uniqueIndex("export_targets_job_target_key_idx").on(
+			table.jobId,
+			table.targetKey,
+		),
+	],
+);
+
+export const exportForumPageTasks = pgTable(
+	"export_forum_page_tasks",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		jobId: uuid("job_id")
+			.notNull()
+			.references(() => exportJobs.id, { onDelete: "cascade" }),
+		targetId: integer("target_id")
+			.notNull()
+			.references(() => exportTargets.id, { onDelete: "cascade" }),
+		forumName: text("forum_name").notNull(),
+		forumId: text("forum_id"),
+		page: integer("page").notNull(),
+		status: varchar("status", { length: 24 }).default("pending").notNull(),
+		attempts: integer("attempts").default(0).notNull(),
+		threadsFound: integer("threads_found").default(0).notNull(),
+		leaseOwner: text("lease_owner"),
+		leaseExpiresAt: timestamp("lease_expires_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		heartbeatAt: timestamp("heartbeat_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		lastError: text("last_error"),
+		createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		completedAt: timestamp("completed_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+	},
+	(table) => [
+		index("export_forum_page_tasks_target_status_idx").on(
+			table.targetId,
+			table.status,
+		),
+		index("export_forum_page_tasks_job_status_idx").on(
+			table.jobId,
+			table.status,
+		),
+		uniqueIndex("export_forum_page_tasks_target_page_idx").on(
+			table.targetId,
+			table.page,
+		),
+	],
+);
+
+export const exportThreadTasks = pgTable(
+	"export_thread_tasks",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		jobId: uuid("job_id")
+			.notNull()
+			.references(() => exportJobs.id, { onDelete: "cascade" }),
+		targetId: integer("target_id")
+			.notNull()
+			.references(() => exportTargets.id, { onDelete: "cascade" }),
+		threadId: text("thread_id").notNull(),
+		forumId: text("forum_id").notNull(),
+		forumName: text("forum_name").notNull(),
+		title: text("title").notNull(),
+		status: varchar("status", { length: 24 }).default("pending").notNull(),
+		nextPostPage: integer("next_post_page").default(1).notNull(),
+		totalPostPages: integer("total_post_pages").default(0).notNull(),
+		attempts: integer("attempts").default(0).notNull(),
+		postsStored: integer("posts_stored").default(0).notNull(),
+		subPostsStored: integer("sub_posts_stored").default(0).notNull(),
+		leaseOwner: text("lease_owner"),
+		leaseExpiresAt: timestamp("lease_expires_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		heartbeatAt: timestamp("heartbeat_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+		lastError: text("last_error"),
+		rawThread: jsonb("raw_thread").$type<Record<string, unknown>>().notNull(),
+		createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		completedAt: timestamp("completed_at", {
+			mode: "date",
+			withTimezone: true,
+		}),
+	},
+	(table) => [
+		index("export_thread_tasks_target_status_idx").on(
+			table.targetId,
+			table.status,
+		),
+		index("export_thread_tasks_job_status_idx").on(table.jobId, table.status),
+		uniqueIndex("export_thread_tasks_job_thread_idx").on(
+			table.jobId,
+			table.threadId,
+		),
+	],
 );

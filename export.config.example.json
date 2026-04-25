@@ -1,0 +1,49 @@
+{
+	"name": "tieba-export-corpus",
+	"crawl": {
+		"sort": 1,
+		"pageSize": 100,
+		"maxForumPages": 500,
+		"maxThreadPages": 600,
+		"includeComments": true,
+		"activeSubPostFetch": false,
+		"activeSubPostPageLimit": 20
+	},
+	"rate": {
+		"requestsPerMinute": 30
+	},
+	"worker": {
+		"leaseSeconds": 300,
+		"claimBatchSize": 2,
+		"maxTaskAttempts": 5,
+		"maxScanAttempts": 5,
+		"idlePollMs": 5000
+	},
+	"targets": [
+		{
+			"forumName": "v",
+			"startTime": "2025-06-01",
+			"endTime": "now",
+			"sort": 1,
+			"pageSize": 100,
+			"maxForumPages": 500,
+			"maxThreadPages": 600,
+			"includeComments": true,
+			"activeSubPostFetch": false,
+			"activeSubPostPageLimit": 20
+		},
+		{
+			"forumName": "cpp",
+			"startTime": "2025-01-01",
+			"endTime": "2025-12-31",
+			"sort": 1,
+			"pageSize": 100,
+			"maxForumPages": 200,
+			"maxThreadPages": 200,
+			"maxThreads": 500,
+			"includeComments": true,
+			"activeSubPostFetch": false,
+			"activeSubPostPageLimit": 10
+		}
+	]
+}

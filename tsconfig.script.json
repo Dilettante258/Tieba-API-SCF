@@ -1,0 +1,16 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"types": [
+			"hono",
+			"node"
+		],
+	},
+	"include": [
+		"./scripts/**"
+	],
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
+}

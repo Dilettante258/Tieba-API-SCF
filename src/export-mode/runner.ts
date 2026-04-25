@@ -1,5 +1,15 @@
-import { Effect } from "effect";
-import { getComments, getPosts, getThreads } from "tieba.js";
+/**
+ * Export mode 是面向 Docker 多实例的语料采集 worker。
+ * 所有实例共享同一个 PostgreSQL，通过 job/target/thread task 状态协同。
+ * worker 优先消费 thread task；没有可消费任务时，抢一个 target producer lease。
+ * producer 扫描贴吧列表页并持续补充 thread task，consumer 负责抓主题帖和回复。
+ * 重启后只会从 DB 中的断点继续；重复抓取依赖内容表 upsert 保持幂等。
+ */
+import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
+import { setTimeout as sleep } from "node:timers/promises";
+import type { Effect } from "effect";
+import { getComments, getPosts } from "tieba.js";
 import { createDb } from "../db/index.ts";
 import type {
 	tiebaForums,
@@ -8,6 +18,16 @@ import type {
 	tiebaThreads,
 	tiebaUsers,
 } from "../db/schema/index.ts";
+import {
+	type ForumThreadInfo,
+	type ForumThreadPageSnapshot,
+	fetchForumThreadPage,
+} from "../lib/forum-threads.ts";
+import {
+	makeRateLimiter,
+	type RateLimiter,
+	runLimited,
+} from "../lib/rate-limit.ts";
 import { setupClient } from "../lib/sdk.ts";
 import {
 	contentToText,
@@ -17,11 +37,11 @@ import {
 	unixSecondsToDate,
 } from "../lib/tieba-normalize.ts";
 import { type ExportTargetConfig, loadExportConfig } from "./config.ts";
-import { RateLimiter } from "./rate-limit.ts";
 import {
-	type ExportCounters,
+	type ClaimedForumPageTask,
+	type ClaimedThreadTask,
 	ExportRepository,
-	type TargetCounters,
+	type ThreadTaskSeed,
 } from "./repository.ts";
 
 type ForumInsert = typeof tiebaForums.$inferInsert;
@@ -29,10 +49,7 @@ type UserInsert = typeof tiebaUsers.$inferInsert;
 type ThreadInsert = typeof tiebaThreads.$inferInsert;
 type PostInsert = typeof tiebaPosts.$inferInsert;
 type SubPostInsert = typeof tiebaSubPosts.$inferInsert;
-type ThreadPage = NonNullable<
-	Effect.Effect.Success<ReturnType<typeof getThreads>>
->;
-type ThreadInfo = ThreadPage["threadList"][number];
+type ThreadInfo = ForumThreadInfo;
 type PostPage = NonNullable<Effect.Effect.Success<ReturnType<typeof getPosts>>>;
 type PostInfo = PostPage["postList"][number];
 type SubPostInfo = NonNullable<PostInfo["subPostList"]>["subPostList"][number];
@@ -42,32 +59,18 @@ interface CrawlContext {
 	jobId: string;
 	repo: ExportRepository;
 	limiter: RateLimiter;
-	jobCounters: ExportCounters;
+	instanceId: string;
+	leaseSeconds: number;
+	maxTaskAttempts: number;
+	maxScanAttempts: number;
+	shouldStop: () => boolean;
 }
 
-interface TargetResult {
-	forumId?: string;
-	counters: TargetCounters;
-}
-
-function emptyJobCounters(): ExportCounters {
-	return {
-		forumsDone: 0,
-		threadsFound: 0,
-		threadsStored: 0,
-		postsStored: 0,
-		subPostsStored: 0,
-	};
-}
-
-function emptyTargetCounters(): TargetCounters {
-	return {
-		pagesScanned: 0,
-		threadsFound: 0,
-		threadsStored: 0,
-		postsStored: 0,
-		subPostsStored: 0,
-	};
+function getInstanceId(): string {
+	return (
+		process.env.EXPORT_INSTANCE_ID ??
+		`${hostname()}:${process.pid}:${randomUUID()}`
+	);
 }
 
 function inTimeRange(date: Date | null, target: ExportTargetConfig): boolean {
@@ -82,10 +85,10 @@ function isOlderThanStart(
 }
 
 function forumFromPage(
-	page: ThreadPage | undefined,
+	page: ForumThreadPageSnapshot,
 	fallbackName: string,
 ): ForumInsert | null {
-	const forum = page?.forum;
+	const forum = page.forum;
 	const id = normalizeId(forum?.id);
 	if (!id) return null;
 	return {
@@ -199,17 +202,26 @@ function collectEmbeddedSubPosts(
 	return rows;
 }
 
-async function runLimited<T>(
-	limiter: RateLimiter,
-	effect: Effect.Effect<T, unknown, never>,
-): Promise<T> {
-	await limiter.wait();
-	return Effect.runPromise(effect);
+function threadTaskFromInfo(
+	thread: ThreadInfo,
+	target: ExportTargetConfig,
+	forumId: string,
+): ThreadTaskSeed | null {
+	const threadId = normalizeId(thread.id);
+	if (!threadId) return null;
+	return {
+		threadId,
+		forumId: normalizeId(thread.fid) ?? forumId,
+		forumName: thread.fname || target.forumName,
+		title: thread.title || "",
+		rawThread: toJsonRecord(thread),
+	};
 }
 
 async function fetchAndStoreAllSubPosts(
 	post: PostInfo,
 	threadId: string,
+	taskId: string,
 	ctx: CrawlContext,
 	target: ExportTargetConfig,
 ): Promise<number> {
@@ -220,7 +232,8 @@ async function fetchAndStoreAllSubPosts(
 	let totalPages = 1;
 	for (
 		let page = 1;
-		page <= Math.min(totalPages, target.subPostPageLimit);
+		page <= Math.min(totalPages, target.activeSubPostPageLimit) &&
+		!ctx.shouldStop();
 		page++
 	) {
 		const data = await runLimited(
@@ -237,217 +250,361 @@ async function fetchAndStoreAllSubPosts(
 			.map((subPost) => subPostToRow(subPost, threadId, postId, ctx.jobId))
 			.filter((row): row is SubPostInsert => !!row);
 		stored += await ctx.repo.upsertSubPosts(rows);
+		const ok = await ctx.repo.extendThreadTaskLease(
+			taskId,
+			ctx.instanceId,
+			ctx.leaseSeconds,
+		);
+		if (!ok) throw new Error(`Thread task lease lost: ${threadId}`);
 	}
 
 	return stored;
 }
 
-async function fetchAndStoreThreadPosts(
-	thread: ThreadInfo,
-	forumId: string,
-	ctx: CrawlContext,
+async function storePostPage(
+	task: ClaimedThreadTask,
 	target: ExportTargetConfig,
-): Promise<{ postsStored: number; subPostsStored: number }> {
-	const threadId = normalizeId(thread.id);
-	if (!threadId) return { postsStored: 0, subPostsStored: 0 };
+	data: PostPage | undefined,
+	ctx: CrawlContext,
+): Promise<{
+	postsStored: number;
+	subPostsStored: number;
+	totalPages: number;
+	interrupted: boolean;
+}> {
+	const totalPages = Math.max(
+		1,
+		data?.page?.totalPage ?? task.totalPostPages ?? 1,
+	);
+	const users = usersFromTiebaUsers([
+		...(data?.userList ?? []),
+		...(data?.postList ?? []).map((post) => post.author),
+		...(data?.postList ?? []).flatMap((post) =>
+			(post.subPostList?.subPostList ?? []).map((subPost) => subPost.author),
+		),
+	]);
+	await ctx.repo.upsertUsers(users);
 
-	let postsStored = 0;
-	let subPostsStored = 0;
-	let totalPages = 1;
-	for (
-		let page = 1;
-		page <= Math.min(totalPages, target.maxThreadPages);
-		page++
-	) {
-		const data = await runLimited(
-			ctx.limiter,
-			getPosts(Number(threadId), page, {
-				withComment: target.includeComments,
-			}),
-		);
-		totalPages = Math.max(1, data?.page?.totalPage ?? 1);
-
-		const users = usersFromTiebaUsers([
-			...(data?.userList ?? []),
-			...(data?.postList ?? []).map((post) => post.author),
-			...(data?.postList ?? []).flatMap((post) =>
-				(post.subPostList?.subPostList ?? []).map((subPost) => subPost.author),
-			),
-		]);
-		await ctx.repo.upsertUsers(users);
-
-		if (data?.forum) {
+	if (data?.forum) {
+		const forumId = normalizeId(data.forum.id);
+		if (forumId) {
 			await ctx.repo.upsertForums([
 				{
-					id: data.forum.id,
+					id: forumId,
 					name: data.forum.name,
 					raw: toJsonRecord(data.forum),
 				},
 			]);
 		}
+	}
 
-		if (data?.thread) {
-			const threadRow = threadToRow(data.thread, target, ctx.jobId, forumId);
-			if (threadRow) await ctx.repo.upsertThreads([threadRow]);
-		}
+	if (data?.thread) {
+		const threadRow = threadToRow(data.thread, target, ctx.jobId, task.forumId);
+		if (threadRow) await ctx.repo.upsertThreads([threadRow]);
+	}
 
-		const posts = data?.postList ?? [];
-		const postRows = posts
-			.map((post) => postToRow(post, threadId, forumId, ctx.jobId))
-			.filter((row): row is PostInsert => !!row);
-		postsStored += await ctx.repo.upsertPosts(postRows);
+	const posts = data?.postList ?? [];
+	const postRows = posts
+		.map((post) => postToRow(post, task.threadId, task.forumId, ctx.jobId))
+		.filter((row): row is PostInsert => !!row);
+	const postsStored = await ctx.repo.upsertPosts(postRows);
 
-		if (target.includeComments) {
-			subPostsStored += await ctx.repo.upsertSubPosts(
-				collectEmbeddedSubPosts(posts, threadId, ctx.jobId),
+	let subPostsStored = 0;
+	if (target.includeComments) {
+		const embeddedSubPostsStored = await ctx.repo.upsertSubPosts(
+			collectEmbeddedSubPosts(posts, task.threadId, ctx.jobId),
+		);
+		if (!target.activeSubPostFetch) subPostsStored += embeddedSubPostsStored;
+	}
+
+	if (target.activeSubPostFetch) {
+		for (const post of posts) {
+			if (ctx.shouldStop()) {
+				return { postsStored, subPostsStored, totalPages, interrupted: true };
+			}
+			subPostsStored += await fetchAndStoreAllSubPosts(
+				post,
+				task.threadId,
+				task.id,
+				ctx,
+				target,
 			);
-		}
-
-		if (target.includeSubPosts) {
-			for (const post of posts) {
-				subPostsStored += await fetchAndStoreAllSubPosts(
-					post,
-					threadId,
-					ctx,
-					target,
-				);
+			if (ctx.shouldStop()) {
+				return { postsStored, subPostsStored, totalPages, interrupted: true };
 			}
 		}
 	}
 
-	return { postsStored, subPostsStored };
+	return { postsStored, subPostsStored, totalPages, interrupted: false };
 }
 
-async function crawlTarget(
+async function consumeThreadTask(
+	task: ClaimedThreadTask,
 	target: ExportTargetConfig,
-	targetId: number,
 	ctx: CrawlContext,
-): Promise<TargetResult> {
-	const counters = emptyTargetCounters();
-	let stop = false;
-	let resolvedForumId: string | undefined;
-	const selectedThreads = new Map<string, ThreadInfo>();
+): Promise<void> {
+	try {
+		const rawThread = task.rawThread as unknown as ThreadInfo;
+		const threadRow = threadToRow(rawThread, target, ctx.jobId, task.forumId);
+		if (threadRow) await ctx.repo.upsertThreads([threadRow]);
 
-	for (let page = 1; page <= target.maxForumPages && !stop; page++) {
-		const data = await runLimited(
-			ctx.limiter,
-			getThreads({
-				fname: target.forumName,
-				page,
-				sort: target.sort,
-				rn: target.pageSize,
-			}),
+		let totalPages = Math.max(1, task.totalPostPages || 1);
+		for (
+			let page = Math.max(1, task.nextPostPage);
+			page <= Math.min(totalPages, target.maxThreadPages) && !ctx.shouldStop();
+			page++
+		) {
+			const data = await runLimited(
+				ctx.limiter,
+				getPosts(Number(task.threadId), page, {
+					withComment: target.includeComments,
+				}),
+			);
+			const result = await storePostPage(task, target, data, ctx);
+			totalPages = result.totalPages;
+			if (result.interrupted || ctx.shouldStop()) {
+				await ctx.repo.releaseThreadTask(task.id, ctx.instanceId, "shutdown");
+				return;
+			}
+
+			const ok = await ctx.repo.updateThreadTaskProgress(
+				task.id,
+				ctx.instanceId,
+				{
+					nextPostPage: page + 1,
+					totalPostPages: totalPages,
+					postsStoredDelta: result.postsStored,
+					subPostsStoredDelta: result.subPostsStored,
+					leaseSeconds: ctx.leaseSeconds,
+				},
+			);
+			if (!ok) throw new Error(`Thread task lease lost: ${task.threadId}`);
+		}
+
+		if (ctx.shouldStop()) {
+			await ctx.repo.releaseThreadTask(task.id, ctx.instanceId, "shutdown");
+			return;
+		}
+
+		await ctx.repo.completeThreadTask(task.id, ctx.instanceId);
+	} catch (err) {
+		if (ctx.shouldStop()) {
+			await ctx.repo.releaseThreadTask(task.id, ctx.instanceId, err);
+			return;
+		}
+
+		await ctx.repo.failThreadTask(
+			task.id,
+			ctx.instanceId,
+			ctx.maxTaskAttempts,
+			err,
 		);
-		counters.pagesScanned = page;
+		console.error(
+			`Failed to crawl thread task ${task.threadId}:`,
+			err instanceof Error ? err.message : err,
+		);
+	}
+}
 
+function assertUsableForumPage(
+	data: ForumThreadPageSnapshot,
+	target: ExportTargetConfig,
+	page: number,
+): void {
+	if (data.threadList.length === 0 && data.hasMore) {
+		throw new Error(
+			`Abnormal empty forum page: ${target.forumName} page ${page} reports hasMore`,
+		);
+	}
+}
+
+function stopAfterPage(
+	data: ForumThreadPageSnapshot,
+	target: ExportTargetConfig,
+	page: number,
+): number | undefined {
+	if (!data.hasMore) return page;
+	const oldestVisible =
+		data.timelineThreads.length > 0 &&
+		data.timelineThreads.every((thread) =>
+			isOlderThanStart(unixSecondsToDate(thread.createTime), target),
+		);
+	if (target.sort === 1 && oldestVisible) return page;
+	return undefined;
+}
+
+// Page scan tasks only discover thread tasks. Thread bodies are crawled by
+// thread consumers, so a huge forum can spread list scanning across containers.
+async function scanForumPageTask(
+	target: ExportTargetConfig,
+	task: ClaimedForumPageTask,
+	ctx: CrawlContext,
+): Promise<void> {
+	try {
+		const data = await fetchForumThreadPage({
+			fname: target.forumName,
+			page: task.page,
+			sort: target.sort,
+			pageSize: target.pageSize,
+			limiter: ctx.limiter,
+		});
+		assertUsableForumPage(data, target, task.page);
+
+		if (ctx.shouldStop()) {
+			await ctx.repo.releaseForumPageTask(task.id, ctx.instanceId, "shutdown");
+			return;
+		}
+
+		let resolvedForumId = task.forumId ?? target.forumName;
 		const forum = forumFromPage(data, target.forumName);
 		if (forum) {
 			resolvedForumId = forum.id;
 			await ctx.repo.upsertForums([forum]);
 		}
-		await ctx.repo.upsertUsers(usersFromTiebaUsers(data?.userList ?? []));
+		await ctx.repo.upsertUsers(usersFromTiebaUsers(data.userList));
 
-		const timelineThreads = (data?.threadList ?? []).filter(
-			(thread) => !thread.isTop,
-		);
-		for (const thread of data?.threadList ?? []) {
+		const tasks: ThreadTaskSeed[] = [];
+		for (const thread of data.timelineThreads) {
 			const createTime = unixSecondsToDate(thread.createTime);
 			if (!inTimeRange(createTime, target)) continue;
-			const id = normalizeId(thread.id);
-			if (!id) continue;
-			selectedThreads.set(id, thread);
-			if (target.maxThreads && selectedThreads.size >= target.maxThreads) {
-				stop = true;
-				break;
-			}
+			const seed = threadTaskFromInfo(thread, target, resolvedForumId);
+			if (seed) tasks.push(seed);
 		}
 
-		counters.threadsFound = selectedThreads.size;
-		await ctx.repo.updateTarget(targetId, "running", counters, resolvedForumId);
+		await ctx.repo.completeForumPageTask(task.id, ctx.instanceId, {
+			forumId: resolvedForumId,
+			maxThreads: target.maxThreads,
+			stopAfterPage: stopAfterPage(data, target, task.page),
+			tasks,
+		});
+	} catch (err) {
+		if (ctx.shouldStop()) {
+			await ctx.repo.releaseForumPageTask(task.id, ctx.instanceId, err);
+			return;
+		}
 
-		const oldestVisible = timelineThreads.every((thread) =>
-			isOlderThanStart(unixSecondsToDate(thread.createTime), target),
+		await ctx.repo.failForumPageTask(
+			task.id,
+			ctx.instanceId,
+			ctx.maxScanAttempts,
+			err,
 		);
-		if (target.sort === 1 && timelineThreads.length > 0 && oldestVisible)
-			stop = true;
-		if (data?.page?.hasMore === 0) stop = true;
-	}
-
-	counters.threadsFound = selectedThreads.size;
-	const forumId =
-		resolvedForumId ??
-		normalizeId(Array.from(selectedThreads.values())[0]?.fid) ??
-		target.forumName;
-
-	for (const thread of selectedThreads.values()) {
-		const threadRow = threadToRow(thread, target, ctx.jobId, forumId);
-		if (!threadRow) continue;
-
-		counters.threadsStored += await ctx.repo.upsertThreads([threadRow]);
-		const postResult = await fetchAndStoreThreadPosts(
-			thread,
-			forumId,
-			ctx,
-			target,
+		console.error(
+			`Failed to scan forum page ${target.forumName}#${task.page}:`,
+			err instanceof Error ? err.message : err,
 		);
-		counters.postsStored += postResult.postsStored;
-		counters.subPostsStored += postResult.subPostsStored;
-		await ctx.repo.updateTarget(targetId, "running", counters, forumId);
 	}
-
-	return { forumId, counters };
 }
 
+// Export mode 入口只装配配置、SDK、DB 和 worker 循环；具体协调逻辑留在 Repository。
 export async function runExportMode(): Promise<void> {
 	const config = await loadExportConfig();
 	setupClient(config.bduss);
 
 	const client = createDb(config.databaseUrl);
 	const repo = new ExportRepository(client.db);
-	const limiter = new RateLimiter(config.rate.minIntervalMs);
-	const jobCounters = emptyJobCounters();
-	const jobId = await repo.createJob(config);
-	const ctx: CrawlContext = { jobId, repo, limiter, jobCounters };
+	const limiter = await makeRateLimiter(config.rate.minIntervalMs);
+	const instanceId = getInstanceId();
+	let stopping = false;
+	const stop = () => {
+		stopping = true;
+	};
+
+	process.once("SIGINT", stop);
+	process.once("SIGTERM", stop);
 
 	try {
+		const jobId = await repo.ensureJob(config, instanceId);
+		const targetById = new Map<number, ExportTargetConfig>();
 		for (const target of config.targets) {
-			const targetId = await repo.createTarget(jobId, target);
-			try {
-				const result = await crawlTarget(target, targetId, ctx);
-				jobCounters.forumsDone += 1;
-				jobCounters.threadsFound += result.counters.threadsFound;
-				jobCounters.threadsStored += result.counters.threadsStored;
-				jobCounters.postsStored += result.counters.postsStored;
-				jobCounters.subPostsStored += result.counters.subPostsStored;
-				await repo.updateTarget(
-					targetId,
-					"completed",
-					result.counters,
-					result.forumId,
-				);
-				await repo.updateJob(jobId, jobCounters);
-			} catch (err) {
-				await repo.updateTarget(
-					targetId,
-					"failed",
-					emptyTargetCounters(),
-					undefined,
-					err instanceof Error ? err.message : String(err),
-				);
-				throw err;
-			}
+			const targetId = await repo.ensureTarget(jobId, target);
+			targetById.set(targetId, target);
 		}
 
-		await repo.finishJob(jobId, "completed", jobCounters);
-	} catch (err) {
-		await repo.finishJob(
+		const ctx: CrawlContext = {
 			jobId,
-			"failed",
-			jobCounters,
-			err instanceof Error ? err.message : String(err),
-		);
-		throw err;
+			repo,
+			limiter,
+			instanceId,
+			leaseSeconds: config.worker.leaseSeconds,
+			maxTaskAttempts: config.worker.maxTaskAttempts,
+			maxScanAttempts: config.worker.maxScanAttempts,
+			shouldStop: () => stopping,
+		};
+
+		while (!stopping) {
+			await repo.updateJobHeartbeat(jobId, instanceId);
+
+			let consumedTask = false;
+			for (let i = 0; i < config.worker.claimBatchSize && !stopping; i++) {
+				const task = await repo.claimThreadTask(
+					jobId,
+					instanceId,
+					config.worker.leaseSeconds,
+					config.worker.maxTaskAttempts,
+				);
+				if (!task) break;
+
+				consumedTask = true;
+				const target = targetById.get(task.targetId);
+				if (!target) {
+					await repo.failThreadTask(
+						task.id,
+						instanceId,
+						config.worker.maxTaskAttempts,
+						new Error(`Missing target config for target ${task.targetId}`),
+					);
+					continue;
+				}
+				await consumeThreadTask(task, target, ctx);
+			}
+			if (consumedTask) continue;
+
+			let scannedPage = false;
+			for (let i = 0; i < config.worker.claimBatchSize && !stopping; i++) {
+				const pageTask = await repo.claimForumPageTask(
+					jobId,
+					instanceId,
+					config.worker.leaseSeconds,
+					config.worker.maxScanAttempts,
+				);
+				if (!pageTask) break;
+
+				scannedPage = true;
+				const target = targetById.get(pageTask.targetId);
+				if (!target) {
+					await repo.failForumPageTask(
+						pageTask.id,
+						instanceId,
+						config.worker.maxScanAttempts,
+						new Error(`Missing target config for target ${pageTask.targetId}`),
+					);
+					continue;
+				}
+				await scanForumPageTask(target, pageTask, ctx);
+			}
+			if (scannedPage) continue;
+
+			await repo.refreshJobSummary(jobId);
+			const state = await repo.getJobRunState(jobId);
+			if (state.failed) {
+				const message = state.errorMessage ?? "Export job failed";
+				await repo.finishJob(jobId, "failed", message);
+				throw new Error(message);
+			}
+			if (state.completed) {
+				await repo.finishJob(jobId, "completed");
+				break;
+			}
+
+			await sleep(config.worker.idlePollMs);
+		}
+
+		if (stopping) await repo.refreshJobSummary(jobId);
 	} finally {
+		process.off("SIGINT", stop);
+		process.off("SIGTERM", stop);
+		await limiter.close();
 		await client.pool.end();
 	}
 }

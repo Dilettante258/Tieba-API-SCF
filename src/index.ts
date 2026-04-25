@@ -11,12 +11,12 @@ export type AppType = ReturnType<typeof createApp>;
 const port = Number(process.env.PORT) || 8000;
 
 async function main(): Promise<void> {
-	setupClient();
 	if (isExportMode) {
 		await runExportMode();
 		return;
 	}
 
+	setupClient();
 	const app = createApp({ cacheRuntime: "server" });
 
 	console.log(`Server is running on http://localhost:${port}`);
