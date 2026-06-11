@@ -3,6 +3,7 @@ import { openAPIRouteHandler } from "hono-openapi";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { dbAnalyzeRoute } from "./routes/db-analyze.ts";
 import { exportRoute } from "./routes/export.ts";
 import { forumAnalyzeRoute } from "./routes/forum-analyze.ts";
 import { forumSearchRoute } from "./routes/forum-search.ts";
@@ -34,7 +35,7 @@ export function createApp(options: CreateAppOptions = {}) {
 					foreign,
 					domestic,
 				],
-				allowMethods: ["GET", "POST", "OPTIONS"],
+				allowMethods: ["GET", "POST", "OPTIONS", "DELETE"],
 				maxAge: 7200,
 				credentials: true,
 			}),
@@ -46,6 +47,10 @@ export function createApp(options: CreateAppOptions = {}) {
 		.route("/forum", forumAnalyzeRoute)
 		.route("/forum", forumSearchRoute)
 		.route("/health", healthRoute);
+
+	if (process.env.DATABASE_URL) {
+		app.route("/db-analyze", dbAnalyzeRoute);
+	}
 	app
 		.all("/", (c) => c.redirect("/docs", 301))
 		.get(

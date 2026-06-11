@@ -1,11 +1,11 @@
 {
 	"name": "@tieba/api",
-	"version": "3.2.4",
+	"version": "3.3.0",
 	"private": true,
 	"type": "module",
 	"main": "src/index.ts",
 	"scripts": {
-		"dev": "tsx watch src/index.ts",
+		"dev": "tsx watch --env-file=.env src/index.ts",
 		"export": "bun src/index.ts --export",
 		"export:config": "bun scripts/generate-export-config.ts",
 		"build": "bun build ./src/index.ts --outdir=out --target=bun",
