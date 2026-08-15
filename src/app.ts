@@ -46,11 +46,8 @@ export function createApp(options: CreateAppOptions = {}) {
 		.route("/forum", forumRoute)
 		.route("/forum", forumAnalyzeRoute)
 		.route("/forum", forumSearchRoute)
-		.route("/health", healthRoute);
-
-	if (process.env.DATABASE_URL) {
-		app.route("/db-analyze", dbAnalyzeRoute);
-	}
+		.route("/health", healthRoute)
+		.route("/db-analyze", dbAnalyzeRoute);
 	app
 		.all("/", (c) => c.redirect("/docs", 301))
 		.get(
