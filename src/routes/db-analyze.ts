@@ -155,6 +155,12 @@ const forumOverlapQuery = z
 // ── 路由 ──────────────────────────────────────────────────────────────────────
 
 export const dbAnalyzeRoute = new Hono()
+	.use("*", async (c, next) => {
+		if (!process.env.DATABASE_URL) {
+			return c.json({ error: "Database not configured" }, 503);
+		}
+		await next();
+	})
 	// ── /stats ─────────────────────────────────────────────────────────────
 	.get(
 		"/stats",
@@ -663,35 +669,45 @@ export const dbAnalyzeRoute = new Hono()
 					),
 				);
 
-			const [postsRows, postsCount, subpostsCount] = await Promise.all([
+			const [postsRows, countsAndIp] = await Promise.all([
 				unionAll(postsQ, subpostsQ)
 					.orderBy(sql`create_time DESC NULLS LAST`)
 					.limit(limitNum)
 					.offset(offset),
 
-				db
-					.select({ count: sql<number>`COUNT(*)::int` })
-					.from(tiebaPosts)
-					.where(
-						and(
-							eq(tiebaPosts.authorId, authorId),
-							forumId ? eq(tiebaPosts.forumId, forumId) : undefined,
-						),
-					)
-					.then((r) => r[0]?.count ?? 0),
+				Promise.all([
+					db
+						.select({ count: sql<number>`COUNT(*)::int` })
+						.from(tiebaPosts)
+						.where(
+							and(
+								eq(tiebaPosts.authorId, authorId),
+								forumId ? eq(tiebaPosts.forumId, forumId) : undefined,
+							),
+						)
+						.then((r) => r[0]?.count ?? 0),
 
-				db
-					.select({ count: sql<number>`COUNT(*)::int` })
-					.from(sp)
-					.innerJoin(pp, eq(sp.postId, pp.id))
-					.where(
-						and(
-							eq(sp.authorId, authorId),
-							forumId ? eq(pp.forumId, forumId) : undefined,
-						),
-					)
-					.then((r) => r[0]?.count ?? 0),
+					db
+						.select({ count: sql<number>`COUNT(*)::int` })
+						.from(sp)
+						.innerJoin(pp, eq(sp.postId, pp.id))
+						.where(
+							and(
+								eq(sp.authorId, authorId),
+								forumId ? eq(pp.forumId, forumId) : undefined,
+							),
+						)
+						.then((r) => r[0]?.count ?? 0),
+
+					db
+						.select({ ipAddress: tiebaUsers.ipAddress })
+						.from(tiebaUsers)
+						.where(eq(tiebaUsers.id, authorId))
+						.then((r) => r[0]?.ipAddress ?? null),
+				]),
 			]);
+
+			const [postsCount, subpostsCount, userIpAddress] = countsAndIp;
 
 			return c.json({
 				total: postsCount + subpostsCount,
@@ -708,6 +724,7 @@ export const dbAnalyzeRoute = new Hono()
 					createTime: r.createTime,
 					floor: r.floor,
 					agreeNum: r.agreeNum,
+					ipAddress: userIpAddress,
 				})),
 			});
 		},
