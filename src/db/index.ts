@@ -26,6 +26,11 @@ export function getDb(): TiebaDb {
 	return defaultClient.db;
 }
 
+export function getDbClient(): DbClient {
+	defaultClient ??= createDb();
+	return defaultClient;
+}
+
 export async function closeDb(): Promise<void> {
 	if (!defaultClient) return;
 	await defaultClient.pool.end();

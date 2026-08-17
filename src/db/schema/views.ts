@@ -3,9 +3,9 @@ import { text } from "drizzle-orm/pg-core";
 import { appDbSchema } from "./shared.ts";
 
 // 预计算所有 (author_id, forum_id) distinct 对，供 forum-overlap 接口使用。
-// 索引需创建后手动执行：
+// 反向索引由现有数据库结构保留，唯一索引由 db:analyze:prepare 幂等创建：
 //   CREATE INDEX idx_ufp_forum_author ON eazy_tieba.user_forum_pairs (forum_id, author_id);
-//   CREATE INDEX idx_ufp_author_forum ON eazy_tieba.user_forum_pairs (author_id, forum_id);
+//   CREATE UNIQUE INDEX idx_ufp_author_forum_unique ON eazy_tieba.user_forum_pairs (author_id, forum_id);
 // 数据同步：REFRESH MATERIALIZED VIEW CONCURRENTLY eazy_tieba.user_forum_pairs
 export const userForumPairs = appDbSchema
 	.materializedView("user_forum_pairs", {

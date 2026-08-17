@@ -84,6 +84,10 @@ BDUSS=你的BDUSS node ./api-node/index.js
 
 - `BDUSS`（必填）：贴吧鉴权凭据。
 - `PORT`（可选）：服务端口，默认 `8000`。
+- `DATABASE_URL`（使用数据库分析时必填）：PostgreSQL 连接地址。
+- `DB_ANALYZE_PASSWORD`（使用数据库分析时必填）：保护 `/db-analyze` API
+  和 Web 端 `/dbanalyze` 页面。该值会作为 Bearer Token，需仅包含字母、数字或
+  `._~+/-=`；建议使用随机生成的长字符串。
 
 ## 文档与健康检查
 

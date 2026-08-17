@@ -18,6 +18,7 @@ import type {
 	tiebaThreads,
 	tiebaUsers,
 } from "../db/schema/index.ts";
+import { refreshAnalysisIndex } from "../lib/db-analysis-index.ts";
 import {
 	type ForumThreadInfo,
 	type ForumThreadPageSnapshot,
@@ -28,7 +29,6 @@ import {
 	type RateLimiter,
 	runLimited,
 } from "../lib/rate-limit.ts";
-import { ExportMailNotifier } from "./mail-notifier.ts";
 import { setupClient } from "../lib/sdk.ts";
 import {
 	contentToText,
@@ -38,6 +38,7 @@ import {
 	unixSecondsToDate,
 } from "../lib/tieba-normalize.ts";
 import { type ExportTargetConfig, loadExportConfig } from "./config.ts";
+import { ExportMailNotifier } from "./mail-notifier.ts";
 import {
 	type ClaimedForumPageTask,
 	type ClaimedThreadTask,
@@ -601,6 +602,11 @@ export async function runExportMode(): Promise<void> {
 			}
 			if (state.completed) {
 				await repo.finishJob(jobId, "completed");
+				try {
+					await refreshAnalysisIndex(client.pool);
+				} catch (error) {
+					console.error("Failed to refresh db analysis index", error);
+				}
 				await notifier.notifyCompleted(jobId);
 				break;
 			}

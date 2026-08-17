@@ -3,6 +3,7 @@ import { setupClient } from "./lib/sdk.ts";
 
 type WorkerEnv = {
 	BDUSS: string;
+	DB_ANALYZE_PASSWORD?: string;
 };
 
 const app = createApp({ cacheRuntime: "worker" });

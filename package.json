@@ -13,7 +13,8 @@
 		"build:worker": "node scripts/build-worker.mjs",
 		"typecheck": "tsc --noEmit",
 		"db:studio": "drizzle-kit studio",
-		"db:push": "drizzle-kit push"
+		"db:push": "drizzle-kit push",
+		"db:analyze:prepare": "bun scripts/prepare-db-analyze.ts"
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.13.4",

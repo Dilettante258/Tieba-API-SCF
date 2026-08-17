@@ -6,6 +6,7 @@ import {
 	index,
 	integer,
 	jsonb,
+	primaryKey,
 	serial,
 	smallint,
 	text,
@@ -180,6 +181,11 @@ export const tiebaPosts = appDbSchema.table(
 	(table) => [
 		index("tieba_posts_thread_floor_idx").on(table.threadId, table.floor),
 		index("tieba_posts_author_idx").on(table.authorId),
+		index("tieba_posts_forum_author_time_idx").on(
+			table.forumId,
+			table.authorId,
+			table.createTime.desc(),
+		),
 	],
 );
 
@@ -211,6 +217,53 @@ export const tiebaSubPosts = appDbSchema.table(
 		index("tieba_sub_posts_author_idx").on(table.authorId),
 	],
 );
+
+/** 可复用的人工贴吧类型；官方一、二级分类继续从 tieba_forums.raw 读取。 */
+export const forumAnalysisGroups = appDbSchema.table(
+	"forum_analysis_groups",
+	{
+		id: uuid("id").defaultRandom().primaryKey(),
+		name: varchar("name", { length: 40 }).notNull(),
+		createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [uniqueIndex("forum_analysis_groups_name_idx").on(table.name)],
+);
+
+export const forumAnalysisGroupMembers = appDbSchema.table(
+	"forum_analysis_group_members",
+	{
+		groupId: uuid("group_id")
+			.notNull()
+			.references(() => forumAnalysisGroups.id, { onDelete: "cascade" }),
+		forumId: text("forum_id")
+			.notNull()
+			.references(() => tiebaForums.id, { onDelete: "cascade" }),
+		createdAt: timestamp("created_at", { mode: "date", withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		primaryKey({ columns: [table.groupId, table.forumId] }),
+		index("forum_analysis_group_members_forum_idx").on(table.forumId),
+	],
+);
+
+/** 记录派生分析数据的刷新状态，供导出 worker 和管理页面协同。 */
+export const dbAnalysisState = appDbSchema.table("db_analysis_state", {
+	key: text("key").primaryKey(),
+	status: varchar("status", { length: 16 }).default("never").notNull(),
+	startedAt: timestamp("started_at", { mode: "date", withTimezone: true }),
+	refreshedAt: timestamp("refreshed_at", { mode: "date", withTimezone: true }),
+	errorMessage: text("error_message"),
+	updatedAt: timestamp("updated_at", { mode: "date", withTimezone: true })
+		.defaultNow()
+		.notNull(),
+});
 
 export const exportJobs = appDbSchema.table(
 	"export_jobs",
@@ -254,8 +307,10 @@ export const exportJobHistory = appDbSchema.table(
 		jobKey: text("job_key").notNull(),
 		jobName: text("job_name").notNull(),
 		status: varchar("status", { length: 24 }).notNull(),
-		startedAt: timestamp("started_at", { mode: "date", withTimezone: true })
-			.notNull(),
+		startedAt: timestamp("started_at", {
+			mode: "date",
+			withTimezone: true,
+		}).notNull(),
 		finishedAt: timestamp("finished_at", {
 			mode: "date",
 			withTimezone: true,

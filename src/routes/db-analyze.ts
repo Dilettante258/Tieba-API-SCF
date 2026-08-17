@@ -1,5 +1,6 @@
 import { describeRoute, validator as zValidator } from "hono-openapi";
 import { Hono } from "hono";
+import { bearerAuth } from "hono/bearer-auth";
 import {
 	and,
 	asc,
@@ -26,6 +27,7 @@ import {
 	tiebaUsers,
 } from "../db/schema/tieba.ts";
 import { userForumPairs } from "../db/schema/views.ts";
+import { dbAnalyzeV2Route } from "./db-analyze-v2.ts";
 
 // ── 公共 user_forums UNION 查询构建器 ────────────────────────────────────────
 // 合并 tieba_posts、tieba_threads、tieba_sub_posts→posts 的 (author_id, forum_id) 去重对
@@ -155,6 +157,22 @@ const forumOverlapQuery = z
 // ── 路由 ──────────────────────────────────────────────────────────────────────
 
 export const dbAnalyzeRoute = new Hono()
+	.use("*", bearerAuth({
+			token: process.env.DB_ANALYZE_PASSWORD!,
+			noAuthenticationHeader: {
+				message: { error: "请先输入数据库分析密码" },
+			},
+			invalidAuthenticationHeader: {
+				message: { error: "密码格式无效" },
+			},
+			invalidToken: { message: { error: "密码错误" } },
+		})
+	)
+	.get("/auth/session", (c) =>
+		c.json({ authenticated: true }, 200, {
+			"Cache-Control": "private, no-store",
+		}),
+	)
 	.use("*", async (c, next) => {
 		if (!process.env.DATABASE_URL) {
 			return c.json({ error: "Database not configured" }, 503);
@@ -728,4 +746,5 @@ export const dbAnalyzeRoute = new Hono()
 				})),
 			});
 		},
-	);
+	)
+	.route("/", dbAnalyzeV2Route);

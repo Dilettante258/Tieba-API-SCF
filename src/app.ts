@@ -1,19 +1,19 @@
 import { Scalar } from "@scalar/hono-api-reference";
-import { openAPIRouteHandler } from "hono-openapi";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { openAPIRouteHandler } from "hono-openapi";
+import { APP_VERSION, domestic, foreign, local } from "./const.ts";
+import { cfCacheMiddleware, normalCacheMiddleware } from "./factory.ts";
 import { dbAnalyzeRoute } from "./routes/db-analyze.ts";
 import { exportRoute } from "./routes/export.ts";
+import { forumRoute } from "./routes/forum.ts";
 import { forumAnalyzeRoute } from "./routes/forum-analyze.ts";
 import { forumSearchRoute } from "./routes/forum-search.ts";
-import { forumRoute } from "./routes/forum.ts";
+import { healthRoute } from "./routes/health.ts";
 import { postRoute } from "./routes/post.ts";
 import { userRoute } from "./routes/user.ts";
 import { handleError } from "./utils/error.ts";
-import { cfCacheMiddleware, normalCacheMiddleware } from "./factory.ts";
-import { APP_VERSION, domestic, foreign, local } from "./const.ts";
-import { healthRoute } from "./routes/health.ts";
 
 type CacheRuntimeMode = "worker" | "server";
 
@@ -35,7 +35,8 @@ export function createApp(options: CreateAppOptions = {}) {
 					foreign,
 					domestic,
 				],
-				allowMethods: ["GET", "POST", "OPTIONS", "DELETE"],
+				allowMethods: ["GET", "POST", "PUT", "OPTIONS", "DELETE"],
+				allowHeaders: ["Content-Type", "Authorization"],
 				maxAge: 7200,
 				credentials: true,
 			}),

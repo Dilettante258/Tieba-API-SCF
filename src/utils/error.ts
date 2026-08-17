@@ -1,6 +1,7 @@
-import { TiebaError } from "tieba.js";
 import type { ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { TiebaError } from "tieba.js";
 
 function normalizeError(err: unknown): {
 	message: string;
@@ -26,6 +27,10 @@ function toStatusCode(status: unknown): ContentfulStatusCode {
 }
 
 export const handleError: ErrorHandler = (err, c) => {
+	if (err instanceof HTTPException) {
+		return err.getResponse();
+	}
+
 	const { message, stack } = normalizeError(err);
 	const reqInfo = `${c.req.method} ${c.req.path}`;
 
