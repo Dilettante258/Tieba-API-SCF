@@ -36,7 +36,12 @@ export function createApp(options: CreateAppOptions = {}) {
 					domestic,
 				],
 				allowMethods: ["GET", "POST", "PUT", "OPTIONS", "DELETE"],
-				allowHeaders: ["Content-Type", "Authorization"],
+				allowHeaders: [
+					"Content-Type",
+					"Authorization",
+					"baggage",
+					"sentry-trace",
+				],
 				maxAge: 7200,
 				credentials: true,
 			}),
